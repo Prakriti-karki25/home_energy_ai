@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
-st.set_page_config(page_title="Home Energy Intelligence AI", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Home Energy Intelligence AI v2", page_icon="⚡", layout="wide")
 
 st.markdown("""
 <style>

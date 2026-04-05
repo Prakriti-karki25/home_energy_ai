@@ -4,6 +4,7 @@ import joblib
 import requests
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 from pathlib import Path
 
 st.set_page_config(page_title="EnergyIQ — Home Energy Intelligence", page_icon="⚡", layout="wide")
@@ -18,97 +19,183 @@ html, body, [class*="css"] { font-family: 'Figtree', sans-serif; }
     background-color: #f7f5f0;
     background-image:
         radial-gradient(circle at 15% 10%, rgba(234,179,8,0.08) 0%, transparent 45%),
-        radial-gradient(circle at 85% 85%, rgba(34,197,94,0.07) 0%, transparent 45%),
-        radial-gradient(circle at 50% 50%, rgba(217,119,6,0.03) 0%, transparent 60%);
+        radial-gradient(circle at 85% 85%, rgba(34,197,94,0.07) 0%, transparent 45%);
     color: #1a1a1a;
-    min-height: 100vh;
 }
-.block-container { max-width: 1200px; padding-top: 0 !important; padding-bottom: 3rem; }
 
-.nav-bar { background:#fff; border-bottom:1px solid #e8e4dc; padding:.9rem 0; margin-bottom:2rem; display:flex; align-items:center; justify-content:space-between; }
-.nav-logo { font-size:1.2rem; font-weight:800; color:#111827; letter-spacing:-.03em; }
-.nav-logo-dot { color:#d97706; }
-.nav-tag { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#6b7280; background:#f3f4f6; padding:3px 10px; border-radius:999px; border:1px solid #e5e7eb; }
+/* ── Fix padding so nav bar does not cut content ── */
+.block-container {
+    max-width: 1200px;
+    padding-top: 1rem !important;
+    padding-bottom: 3rem;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
 
-.hero-wrap { max-width:820px; margin:0 auto 2.5rem auto; text-align:center; padding:1rem 0; }
-.hero-chip { display:inline-flex; align-items:center; gap:6px; padding:.35rem .9rem; border-radius:999px; background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:.75rem; margin-bottom:1.2rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
-.main-title { font-size:3rem; font-weight:800; line-height:1.08; color:#111827; margin-bottom:.9rem; letter-spacing:-.04em; }
-.title-accent { color:#d97706; }
-.sub-title { font-size:1.02rem; color:#6b7280; line-height:1.8; max-width:580px; margin:0 auto; font-weight:400; }
+/* ── Fix ALL Streamlit buttons to light theme ── */
+.stButton > button {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #e8e4dc !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-family: 'Figtree', sans-serif !important;
+    font-size: .9rem !important;
+    padding: .55rem 1.2rem !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
+    transition: all .15s !important;
+}
+.stButton > button:hover {
+    background: #fef3c7 !important;
+    border-color: #fde68a !important;
+    color: #92400e !important;
+}
 
-.form-card { background:#fff; border:1px solid #e8e4dc; border-radius:20px; padding:2rem; box-shadow:0 4px 24px rgba(0,0,0,.06); margin-bottom:2rem; }
+/* ── Fix ALL Streamlit inputs to light theme ── */
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #e8e4dc !important;
+    border-radius: 10px !important;
+    font-family: 'Figtree', sans-serif !important;
+}
+div[data-testid="stSelectbox"] > div > div,
+div[data-baseweb="select"] > div {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #e8e4dc !important;
+    border-radius: 10px !important;
+}
+div[data-baseweb="select"] span { color: #111827 !important; }
+div[data-baseweb="popover"] ul { background: #ffffff !important; }
+div[data-baseweb="popover"] li { color: #111827 !important; }
+div[data-baseweb="popover"] li:hover { background: #fef3c7 !important; }
 
-.addr-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:#374151; margin-bottom:.5rem; display:block; }
-.addr-dropdown { background:#fff; border:1px solid #d1d5db; border-radius:14px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.12); margin-top:4px; }
-.addr-item { display:flex; align-items:center; gap:12px; padding:11px 14px; border-bottom:1px solid #f3f4f6; }
-.addr-item:last-child { border-bottom:none; }
-.addr-pin { width:30px; height:30px; border-radius:8px; flex-shrink:0; background:#fef3c7; border:1px solid #fde68a; display:flex; align-items:center; justify-content:center; font-size:.85rem; }
-.addr-item-main { font-size:.92rem; font-weight:600; color:#111827; line-height:1.3; }
-.addr-item-sub  { font-size:.78rem; color:#9ca3af; margin-top:1px; }
-.addr-selected  { display:flex; align-items:center; gap:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:9px 13px; margin-top:8px; }
-.addr-selected-text { font-size:.9rem; font-weight:600; color:#15803d; }
-
-.field-section-title { font-size:.92rem; font-weight:700; color:#374151; margin:1.5rem 0 .75rem; padding-bottom:.4rem; border-bottom:2px solid #fde68a; display:inline-block; }
-
+/* ── Fix labels ── */
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
-div[data-testid="stNumberInput"] label { color:#374151 !important; font-weight:600 !important; font-size:.85rem !important; }
+div[data-testid="stNumberInput"] label {
+    color: #374151 !important;
+    font-weight: 600 !important;
+    font-size: .85rem !important;
+}
 
-.metric-card { background:#fff; border:1px solid #e8e4dc; border-top:3px solid #d97706; border-radius:16px; padding:1.2rem 1.3rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,.05); }
-.metric-card-green { border-top-color:#16a34a; }
-.metric-card-slate { border-top-color:#64748b; }
-.metric-label  { color:#6b7280; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.4rem; }
-.metric-value  { color:#111827; font-size:2rem; font-weight:800; font-family:'IBM Plex Mono',monospace; line-height:1.1; }
-.metric-subtle { color:#9ca3af; font-size:.82rem; margin-top:.3rem; }
+/* ── Nav bar ── */
+.nav-bar {
+    background: #fff;
+    border-bottom: 1px solid #e8e4dc;
+    padding: .85rem 0;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.nav-logo { font-size: 1.15rem; font-weight: 800; color: #111827; letter-spacing: -.03em; }
+.nav-logo-dot { color: #d97706; }
+.nav-tag { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 999px; border: 1px solid #e5e7eb; }
 
-.panel-card { background:#fff; border:1px solid #e8e4dc; border-radius:16px; padding:1.4rem; box-shadow:0 2px 8px rgba(0,0,0,.04); margin-bottom:1rem; }
+/* ── Hero ── */
+.hero-wrap { max-width: 820px; margin: 0 auto 2.5rem auto; text-align: left; padding: 1.5rem 0; }
+.hero-chip { display: inline-flex; align-items: center; gap: 6px; padding: .35rem .9rem; border-radius: 999px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: .75rem; margin-bottom: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+.main-title { font-size: 3rem; font-weight: 800; line-height: 1.08; color: #111827; margin-bottom: .9rem; letter-spacing: -.04em; }
+.title-accent { color: #d97706; display: block; }
+.sub-title { font-size: 1rem; color: #6b7280; line-height: 1.8; max-width: 560px; font-weight: 400; }
 
-.ai-panel { background:linear-gradient(135deg,#fffbeb 0%,#f0fdf4 100%); border:1px solid #fde68a; border-radius:20px; padding:1.6rem; margin-bottom:1.5rem; box-shadow:0 4px 20px rgba(217,119,6,.08); }
-.ai-header { display:flex; align-items:center; gap:12px; margin-bottom:1.2rem; padding-bottom:.9rem; border-bottom:1px solid #fde68a; }
-.ai-dot-ring { width:40px; height:40px; border-radius:12px; flex-shrink:0; background:linear-gradient(135deg,#d97706,#16a34a); display:flex; align-items:center; justify-content:center; font-size:1.2rem; box-shadow:0 4px 12px rgba(217,119,6,.25); }
-.ai-header-title { font-size:1.05rem; font-weight:700; color:#111827; }
-.ai-header-sub   { font-size:.78rem; color:#92400e; margin-top:2px; }
-.ai-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-.ai-card { background:#fff; border:1px solid #fde68a; border-radius:12px; padding:1rem 1.1rem; box-shadow:0 1px 4px rgba(0,0,0,.04); }
-.ai-card-full { background:#fff; border:1px solid #fde68a; border-radius:12px; padding:1rem 1.1rem; grid-column:1/-1; box-shadow:0 1px 4px rgba(0,0,0,.04); }
-.ai-card-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:#d97706; margin-bottom:.4rem; }
-.ai-card-text  { font-size:.9rem; color:#374151; line-height:1.75; }
+/* ── Form card ── */
+.form-card { background: #fff; border: 1px solid #e8e4dc; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 24px rgba(0,0,0,.06); margin-bottom: 2rem; }
+.field-section-title { font-size: .9rem; font-weight: 700; color: #374151; margin: 1.5rem 0 .75rem; padding-bottom: .4rem; border-bottom: 2px solid #fde68a; display: inline-block; }
 
-.upgrade-card { background:#fff; border:1px solid #e8e4dc; border-top:3px solid #e8e4dc; border-radius:16px; padding:1.2rem; margin-bottom:1rem; min-height:270px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
-.upgrade-card-high   { border-top-color:#16a34a; }
-.upgrade-card-medium { border-top-color:#d97706; }
-.upgrade-card-low    { border-top-color:#94a3b8; }
+/* ── Address autocomplete ── */
+.addr-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #374151; margin-bottom: .5rem; display: block; }
+.addr-dropdown { background: #fff; border: 1px solid #d1d5db; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.12); margin-top: 4px; }
+.addr-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid #f3f4f6; }
+.addr-item:last-child { border-bottom: none; }
+.addr-pin { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: #fef3c7; border: 1px solid #fde68a; display: flex; align-items: center; justify-content: center; font-size: .85rem; }
+.addr-item-main { font-size: .92rem; font-weight: 600; color: #111827; line-height: 1.3; }
+.addr-item-sub  { font-size: .78rem; color: #9ca3af; margin-top: 1px; }
+.addr-selected  { display: flex; align-items: center; gap: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 9px 13px; margin-top: 8px; }
+.addr-selected-text { font-size: .9rem; font-weight: 600; color: #15803d; }
 
-.pill { display:inline-block; border-radius:999px; padding:.2rem .7rem; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
-.pill-high   { background:#dcfce7; border:1px solid #bbf7d0; color:#15803d; }
-.pill-medium { background:#fef3c7; border:1px solid #fde68a; color:#92400e; }
-.pill-low    { background:#f1f5f9; border:1px solid #e2e8f0; color:#475569; }
+/* ── Metric cards ── */
+.metric-card { background: #fff; border: 1px solid #e8e4dc; border-top: 3px solid #d97706; border-radius: 16px; padding: 1.2rem 1.3rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.metric-card-green { border-top-color: #16a34a; }
+.metric-card-slate { border-top-color: #64748b; }
+.metric-label  { color: #6b7280; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .4rem; }
+.metric-value  { color: #111827; font-size: 2rem; font-weight: 800; font-family: 'IBM Plex Mono', monospace; line-height: 1.1; }
+.metric-subtle { color: #9ca3af; font-size: .82rem; margin-top: .3rem; }
 
-.incentive-card { background:#fff; border:1px solid #e8e4dc; border-left:3px solid #d97706; border-radius:12px; padding:.9rem 1rem; margin-bottom:.65rem; box-shadow:0 1px 4px rgba(0,0,0,.03); }
-.incentive-type  { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#d97706; margin-bottom:.2rem; }
-.incentive-name  { font-size:.93rem; font-weight:600; color:#111827; margin-bottom:.25rem; }
-.incentive-value { font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:500; color:#16a34a; }
+/* ── AI Panel ── */
+.ai-panel { background: linear-gradient(135deg, #fffbeb 0%, #f0fdf4 100%); border: 1px solid #fde68a; border-radius: 20px; padding: 1.6rem; margin-bottom: 1.5rem; box-shadow: 0 4px 20px rgba(217,119,6,.08); }
+.ai-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.2rem; padding-bottom: .9rem; border-bottom: 1px solid #fde68a; }
+.ai-dot-ring { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; background: linear-gradient(135deg, #d97706, #16a34a); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 4px 12px rgba(217,119,6,.25); }
+.ai-header-title { font-size: 1.05rem; font-weight: 700; color: #111827; }
+.ai-header-sub   { font-size: .78rem; color: #92400e; margin-top: 2px; }
+.ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ai-card { background: #fff; border: 1px solid #fde68a; border-radius: 12px; padding: 1rem 1.1rem; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.ai-card-full { background: #fff; border: 1px solid #fde68a; border-radius: 12px; padding: 1rem 1.1rem; grid-column: 1/-1; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.ai-card-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #d97706; margin-bottom: .4rem; }
+.ai-card-text  { font-size: .9rem; color: #374151; line-height: 1.75; }
 
-.market-card { background:#fff; border:1px solid #e8e4dc; border-radius:14px; padding:1rem 1.1rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,.03); }
+/* ── Chart wrapper — replaces broken panel-card trick ── */
+.chart-wrap { background: #fff; border: 1px solid #e8e4dc; border-radius: 16px; padding: 1.25rem 1.4rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,.04); margin-bottom: 1rem; }
+.chart-title { font-size: 1.05rem; font-weight: 700; color: #111827; margin-bottom: .15rem; }
+.chart-caption { font-size: .8rem; color: #9ca3af; margin-bottom: .75rem; }
 
-.comp-table { width:100%; border-collapse:collapse; font-size:.88rem; }
-.comp-table th { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#9ca3af; padding:0 0 10px; text-align:left; border-bottom:2px solid #f3f4f6; }
-.comp-table td { padding:10px 0; border-bottom:1px solid #f3f4f6; color:#374151; vertical-align:middle; }
-.comp-table td.you { color:#111827; font-weight:700; }
-.you-tag { font-size:.68rem; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:999px; margin-left:7px; font-weight:700; border:1px solid #fde68a; }
+/* ── Upgrade cards ── */
+.upgrade-card { background: #fff; border: 1px solid #e8e4dc; border-top: 3px solid #e8e4dc; border-radius: 16px; padding: 1.2rem; margin-bottom: 1rem; min-height: 270px; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+.upgrade-card-high   { border-top-color: #16a34a; }
+.upgrade-card-medium { border-top-color: #d97706; }
+.upgrade-card-low    { border-top-color: #94a3b8; }
+.pill { display: inline-block; border-radius: 999px; padding: .2rem .7rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.pill-high   { background: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; }
+.pill-medium { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+.pill-low    { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
 
-.feature-card { background:#fff; border:1px solid #e8e4dc; border-radius:14px; padding:1.2rem; box-shadow:0 1px 4px rgba(0,0,0,.03); }
-.feature-title { font-size:.95rem; font-weight:700; color:#111827; margin-bottom:.35rem; }
-.feature-text  { color:#6b7280; font-size:.87rem; line-height:1.65; }
+/* ── Incentives ── */
+.incentive-card { background: #fff; border: 1px solid #e8e4dc; border-left: 3px solid #d97706; border-radius: 12px; padding: .9rem 1rem; margin-bottom: .65rem; box-shadow: 0 1px 4px rgba(0,0,0,.03); }
+.incentive-type  { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #d97706; margin-bottom: .2rem; }
+.incentive-name  { font-size: .93rem; font-weight: 600; color: #111827; margin-bottom: .25rem; }
+.incentive-value { font-family: 'IBM Plex Mono', monospace; font-size: 1.05rem; font-weight: 500; color: #16a34a; }
 
-.section-title { font-size:1.5rem; font-weight:800; color:#111827; margin-bottom:.3rem; letter-spacing:-.02em; }
-.section-sub   { color:#9ca3af; font-size:.85rem; margin-bottom:1.2rem; }
-.small-muted   { color:#6b7280; font-size:.9rem; line-height:1.65; }
-.footer-note   { color:#9ca3af; text-align:center; font-size:.82rem; }
-hr { border:none; border-top:1px solid #e8e4dc; margin:2rem 0; }
+/* ── Market ── */
+.market-card { background: #fff; border: 1px solid #e8e4dc; border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.03); }
 
-div[data-testid="stExpander"] { border:1px solid #e8e4dc !important; border-radius:12px !important; background:#fafaf8 !important; }
-.stButton button { border-radius:10px !important; font-weight:600 !important; }
+/* ── Neighborhood table ── */
+.comp-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.comp-table th { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #9ca3af; padding: 12px 8px 10px; text-align: left; border-bottom: 2px solid #f3f4f6; }
+.comp-table td { padding: 11px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+.comp-table td.you { color: #111827; font-weight: 700; }
+.you-tag { font-size: .68rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; margin-left: 7px; font-weight: 700; border: 1px solid #fde68a; }
+
+/* ── Feature cards ── */
+.feature-card { background: #fff; border: 1px solid #e8e4dc; border-radius: 14px; padding: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,.03); }
+.feature-title { font-size: .95rem; font-weight: 700; color: #111827; margin-bottom: .35rem; }
+.feature-text  { color: #6b7280; font-size: .87rem; line-height: 1.65; }
+
+/* ── Section headings ── */
+.section-title { font-size: 1.5rem; font-weight: 800; color: #111827; margin-bottom: .3rem; letter-spacing: -.02em; }
+.section-sub   { color: #9ca3af; font-size: .85rem; margin-bottom: 1.2rem; }
+.small-muted   { color: #6b7280; font-size: .9rem; line-height: 1.65; }
+.section-anchor { position: relative; top: -70px; display: block; visibility: hidden; }
+
+/* ── Sidebar nav ── */
+.sidebar-nav {
+    position: fixed; left: 1rem; top: 50%;
+    transform: translateY(-50%);
+    background: #fff; border: 1px solid #e8e4dc;
+    border-radius: 16px; padding: 1rem .75rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    z-index: 999; min-width: 130px;
+}
+.sidebar-nav a { display: flex; align-items: center; gap: 8px; font-size: .76rem; font-weight: 600; color: #6b7280; text-decoration: none; padding: 5px 4px; border-radius: 8px; white-space: nowrap; }
+.sidebar-nav a:hover { color: #d97706; }
+.sidebar-nav .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: #e8e4dc; flex-shrink: 0; }
+.sidebar-nav a:hover .nav-dot { background: #d97706; }
+@media (max-width: 1100px) { .sidebar-nav { display: none; } }
+
+/* ── Expander ── */
+div[data-testid="stExpander"] { border: 1px solid #e8e4dc !important; border-radius: 12px !important; background: #fafaf8 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -121,18 +208,16 @@ def load_model():
 
 model = load_model()
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def search_address(query):
-    if not query or len(query.strip()) < 3:
-        return []
+    if not query or len(query.strip()) < 3: return []
     try:
-        r = requests.get(
-            "https://nominatim.openstreetmap.org/search",
+        r = requests.get("https://nominatim.openstreetmap.org/search",
             params={"q":query,"format":"jsonv2","addressdetails":1,"limit":6,"countrycodes":"us","dedupe":1},
-            headers={"User-Agent":"home-energy-ai/1.0"}, timeout=8
-        )
+            headers={"User-Agent":"home-energy-ai/1.0"}, timeout=8)
         r.raise_for_status(); return r.json()
-    except Exception:
-        return []
+    except Exception: return []
 
 def split_address_parts(display_name):
     parts = [p.strip() for p in display_name.split(",")]
@@ -168,13 +253,14 @@ def climate_region_from_state(state_abbr):
     return "mixed"
 
 def build_monthly_profile(annual_kwh, aircond_label, heating_label, climate_region):
-    if   climate_region=="hot":                                 w=[.06,.06,.07,.08,.09,.11,.13,.13,.10,.07,.05,.05]
+    if   climate_region=="hot":                                  w=[.06,.06,.07,.08,.09,.11,.13,.13,.10,.07,.05,.05]
     elif climate_region=="cold" and heating_label=="Electricity": w=[.13,.12,.10,.07,.06,.05,.05,.05,.06,.08,.11,.12]
-    elif climate_region=="mild":                                w=[.08,.08,.08,.08,.08,.09,.09,.09,.08,.08,.08,.09]
-    elif aircond_label=="Yes":                                  w=[.07,.07,.07,.07,.08,.10,.12,.12,.09,.07,.07,.07]
-    else:                                                       w=[1/12]*12
+    elif climate_region=="mild":                                 w=[.08,.08,.08,.08,.08,.09,.09,.09,.08,.08,.08,.09]
+    elif aircond_label=="Yes":                                   w=[.07,.07,.07,.07,.08,.10,.12,.12,.09,.07,.07,.07]
+    else:                                                        w=[1/12]*12
     total=sum(w); norm=[x/total for x in w]
-    return pd.DataFrame({"Month":["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],"Estimated kWh":[annual_kwh*x for x in norm]})
+    months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    return pd.DataFrame({"Month":months,"Estimated kWh":[annual_kwh*x for x in norm]})
 
 def build_time_of_day_profile(category, aircond_label):
     if   category=="High" and aircond_label=="Yes": s={"Morning":.20,"Afternoon":.26,"Evening":.34,"Night":.20}
@@ -196,8 +282,8 @@ def get_upgrade_cards(category, climate_region, aircond_label, heating_label, st
             {"icon":"❄️","title":"High-Efficiency Heat Pump","type":"Cooling / HVAC","priority":"high","desc":"Upgrade to SEER 18+ heat pump. Biggest single saving in hot climates where HVAC is 40-48% of usage.","cost":"$5,500-$9,000","savings":f"${260 if category=='High' else 160}/yr","payback":"6-10 yrs","co2":"1.0 tCO2e"},
             {"icon":"☀️","title":"Rooftop Solar (10 kW)","type":"Solar Generation","priority":"high","desc":"5.5-5.8 peak sun hours/day. Eliminates ~90% of your annual electricity bill.","cost":"$17,000","savings":"$2,100/yr","payback":"5-7 yrs","co2":"3.5 tCO2e"},
             {"icon":"🌡️","title":"Smart Thermostat","type":"Controls","priority":"high","desc":"Ecobee or Nest learns your schedule, reduces peak-hour HVAC waste. Often qualifies for utility rebates.","cost":"$250","savings":"$180/yr","payback":"1-2 yrs","co2":"0.2 tCO2e"},
-            {"icon":"🏠","title":"Attic Insulation (R-38)","type":"Envelope","priority":"medium","desc":"Poor insulation forces HVAC to work harder. R-38 attic insulation reduces cooling load by 15%.","cost":"$1,800","savings":"$290/yr","payback":"6 yrs","co2":"0.6 tCO2e"},
-            {"icon":"💧","title":"Heat Pump Water Heater","type":"Water Heating","priority":"medium","desc":"3x more efficient than standard electric. Targets 12-14% of your annual electricity usage.","cost":"$1,200","savings":"$310/yr","payback":"4 yrs","co2":"0.4 tCO2e"},
+            {"icon":"🏠","title":"Attic Insulation (R-38)","type":"Envelope","priority":"medium","desc":"Poor insulation forces HVAC to work harder. R-38 reduces cooling load by 15%.","cost":"$1,800","savings":"$290/yr","payback":"6 yrs","co2":"0.6 tCO2e"},
+            {"icon":"💧","title":"Heat Pump Water Heater","type":"Water Heating","priority":"medium","desc":"3x more efficient than standard electric. Targets 12-14% of your annual usage.","cost":"$1,200","savings":"$310/yr","payback":"4 yrs","co2":"0.4 tCO2e"},
             {"icon":"🔋","title":"Home Battery (10 kWh)","type":"Storage","priority":"low","desc":"Store solar energy, avoid peak TOU rates, backup power during grid outages.","cost":"$8,000","savings":"$480/yr","payback":"16 yrs","co2":"0.8 tCO2e"},
         ]
     elif climate_region=="cold":
@@ -241,7 +327,7 @@ def get_incentives(state_abbr, state_name, climate_region):
     return federal+local
 
 def get_market_data(state_name, state_abbr, rate, climate_region):
-    if   state_abbr in {"WA","OR","CA","NY","VT","ID"}:              cg,hp,sa="Above avg","+18%","22%"
+    if   state_abbr in {"WA","OR","CA","NY","VT","ID"}:               cg,hp,sa="Above avg","+18%","22%"
     elif state_abbr in {"TX","FL","AZ","NV","LA","GA","SC","AL","MS"}: cg,hp,sa="Moderate","+22%","14%"
     elif state_abbr in {"MN","WI","MI","ND","SD","MT","VT","NH","ME"}: cg,hp,sa="Moderate","+23%","6%"
     else:                                                               cg,hp,sa="Typical","+20%","10%"
@@ -280,18 +366,17 @@ def get_ai_analysis(address, state_name, climate_region, category, annual_cost, 
     diff_pct=int(abs(prediction-national_avg)/national_avg*100)
     vs_avg=f"{diff_pct}% above" if prediction>national_avg else f"{diff_pct}% below"
     climate_text={
-        "hot":  f"Located in a Hot-Humid climate zone, cooling is the dominant energy driver — 40-48% of annual consumption. Long cooling seasons mean HVAC efficiency has the highest ROI of any upgrade.",
-        "cold": f"In a Cold climate zone, heating dominates winter energy costs. December through February can drive bills 70-90% above the summer average, making insulation and heat pump upgrades the priority.",
+        "hot":  "Located in a Hot-Humid climate zone, cooling is the dominant energy driver — 40-48% of annual consumption. Long cooling seasons mean HVAC efficiency has the highest ROI of any upgrade.",
+        "cold": "In a Cold climate zone, heating dominates winter energy costs. December through February can drive bills 70-90% above the summer average, making insulation and heat pump upgrades the priority.",
         "mild": f"A Mixed-Dry or Mild climate means energy use is more balanced year-round. The elevated utility rate in {loc} makes every kWh saved more valuable than in most US states.",
-        "mixed":f"This Mixed climate sees meaningful costs from both heating and cooling, spreading opportunity across HVAC, insulation, and water heating upgrades.",
+        "mixed":"This Mixed climate sees meaningful costs from both heating and cooling, spreading opportunity across HVAC, insulation, and water heating upgrades.",
     }[climate_region]
     savings_total=0
     for u in upgrades[:3]:
         try:
             s=u["savings"].replace("$","").replace("/yr","").replace(",","").split("-")[0]
             savings_total+=int(s)
-        except Exception:
-            pass
+        except Exception: pass
     peak_time="evenings (5-9 pm)" if climate_region in ("mild","mixed") else ("afternoons (12-6 pm)" if climate_region=="hot" else "mornings and evenings")
     return {
         "overview":f"This home in <strong>{loc}</strong> shows a <strong>{category.lower()} energy profile</strong> consuming an estimated <strong>{prediction:,.0f} kWh/year</strong>, which is <strong>{vs_avg}</strong> the US national average of 10,500 kWh. Estimated annual energy cost: <strong>${annual_cost:,.0f}</strong> (~<strong>${annual_cost/12:,.0f}/month</strong>).",
@@ -302,6 +387,14 @@ def get_ai_analysis(address, state_name, climate_region, category, annual_cost, 
         "incentive_note":f"Federal IRA credits are active through 2032. A 30% solar tax credit, $2,000 heat pump credit, and $1,200 insulation credit can stack together, potentially covering <strong>$5,000-$10,000</strong> of upgrade costs.",
     }
 
+def calc_score(prediction):
+    if prediction < 6000:   return 88
+    elif prediction < 9000: return 74
+    elif prediction < 12000: return 58
+    elif prediction < 15000: return 42
+    else: return 28
+
+# ── Session state ─────────────────────────────────────────────────────────────
 for k,v in [("page","form"),("report_data",None),("selected_address_value",""),("loading_address",""),("loading_inputs",{})]:
     if k not in st.session_state: st.session_state[k]=v
 
@@ -311,28 +404,23 @@ def go_to_report(data):
 def go_to_form():
     st.session_state.page="form"
 
-# ════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 # PAGE 1 — FORM
-# ════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 if st.session_state.page=="form":
 
-    # Nav bar
-    st.markdown("""
-    <div class="nav-bar">
-        <div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div>
-        <div class="nav-tag">Powered by ML + Real RECS Data</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="nav-bar"><div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div><div class="nav-tag">AI-Powered Energy Analysis</div></div>', unsafe_allow_html=True)
 
-    # Hero
-    st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
-    st.markdown('<div class="hero-chip">⚡ AI-Powered Home Energy Analysis</div>', unsafe_allow_html=True)
-    st.markdown('<div class="main-title">Your home\'s energy story,<br><span class="title-accent">decoded.</span></div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Enter your address and home details to get a personalized energy report — with upgrade opportunities, available incentives, and AI-powered recommendations.</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Hero — left-aligned, new title
+    st.markdown('<div class="hero-chip">⚡ ML Model + Real RECS Data</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">Know Where Your<br><span class="title-accent">Energy Goes</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Enter your address and home details to get a personalized energy report with upgrade opportunities, available incentives, and AI-powered recommendations.</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # Form
+    # Form card
     st.markdown('<div class="form-card">', unsafe_allow_html=True)
+
+    # Address
     st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
     address_query    = st.text_input("addr_hidden", placeholder="Start typing any US address...", key="addr_input", label_visibility="collapsed")
     suggestions      = search_address(address_query)
@@ -394,218 +482,148 @@ if st.session_state.page=="form":
     _,bc,_=st.columns([0.15,0.70,0.15])
     with bc:
         if st.button("Generate Energy Report  →",use_container_width=True):
-            st.session_state["loading_address"] = selected_address if selected_address else address_query
-            st.session_state["loading_inputs"] = {"totrooms":totrooms,"totsqft_en":totsqft_en,"typehuq":typehuq,"nhsldmem":nhsldmem,"aircond":aircond,"fuelheat":fuelheat,"division":division,"yearmaderange":yearmaderange,"aircond_label":aircond_label,"heating_label":heating_label,"sqft_estimated":sqft_estimated,"housing_type_label":housing_type_label}
-            st.session_state["page"] = "loading"
-            st.rerun()
+            st.session_state["loading_address"]=selected_address if selected_address else address_query
+            st.session_state["loading_inputs"]={"totrooms":totrooms,"totsqft_en":totsqft_en,"typehuq":typehuq,"nhsldmem":nhsldmem,"aircond":aircond,"fuelheat":fuelheat,"division":division,"yearmaderange":yearmaderange,"aircond_label":aircond_label,"heating_label":heating_label,"sqft_estimated":sqft_estimated,"housing_type_label":housing_type_label}
+            st.session_state["page"]="loading"; st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     b1,b2,b3=st.columns(3)
     for col,icon,title,text in [
-        (b1,"⚡","Real ML prediction","Trained on 18,000+ US homes from the EIA RECS survey — not a simple calculator."),
-        (b2,"📐","Works without sq footage","We estimate it from room count so you can still get started."),
-        (b3,"💡","Full report instantly","Upgrades, incentives, market data, and AI analysis all in one place."),
+        (b1,"⚡","Real ML prediction","Trained on 18,000+ US homes from the EIA RECS survey."),
+        (b2,"📐","Works without sq footage","We estimate it from room count automatically."),
+        (b3,"💡","Full report instantly","Upgrades, incentives, market data, and AI analysis."),
     ]:
         with col:
             st.markdown(f'<div class="feature-card"><div style="font-size:1.5rem;margin-bottom:.5rem;">{icon}</div><div class="feature-title">{title}</div><div class="feature-text">{text}</div></div>',unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align:center;padding:1.5rem 0 .5rem;border-top:1px solid #e8e4dc;">
-        <div style="font-size:.95rem;font-weight:800;color:#374151;letter-spacing:-.02em;margin-bottom:.3rem;">⚡ EnergyIQ</div>
-        <div style="color:#9ca3af;font-size:.8rem;">Streamlit · Random Forest · EIA RECS · DSIRE · OpenStreetMap Nominatim</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;padding:1.5rem 0 .5rem;border-top:1px solid #e8e4dc;"><div style="font-size:.95rem;font-weight:800;color:#374151;margin-bottom:.3rem;">⚡ EnergyIQ</div><div style="color:#9ca3af;font-size:.8rem;">Streamlit · Random Forest · EIA RECS · DSIRE · OpenStreetMap Nominatim</div></div>', unsafe_allow_html=True)
 
 
-# ════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 # PAGE 1.5 — LOADING SCREEN
-# ════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 elif st.session_state.page=="loading":
-    inp = st.session_state.get("loading_inputs",{})
+    inp  = st.session_state.get("loading_inputs",{})
     addr = st.session_state.get("loading_address","")
 
-    st.markdown("""
-    <div class="nav-bar">
-        <div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div>
-        <div class="nav-tag">Generating Report</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="nav-bar"><div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div><div class="nav-tag">Generating Report</div></div>', unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div style="max-width:580px;margin:3rem auto 0;text-align:center;">
-        <div style="width:56px;height:56px;border-radius:50%;border:3px solid #fde68a;border-top-color:#d97706;
-                    animation:spin 1s linear infinite;margin:0 auto 1.5rem;"></div>
-        <div style="font-size:1.5rem;font-weight:800;color:#111827;letter-spacing:-.02em;margin-bottom:.5rem;">
+    <div style="max-width:560px;margin:3rem auto 0;text-align:center;">
+        <div style="width:54px;height:54px;border-radius:50%;border:3.5px solid #fde68a;border-top-color:#d97706;
+                    animation:spin 1s linear infinite;margin:0 auto 1.4rem;"></div>
+        <div style="font-size:1.45rem;font-weight:800;color:#111827;letter-spacing:-.02em;margin-bottom:.4rem;">
             Generating your energy report
         </div>
-        <div style="font-size:.9rem;color:#9ca3af;margin-bottom:2rem;">{addr}</div>
+        <div style="font-size:.88rem;color:#9ca3af;margin-bottom:2rem;">{addr}</div>
     </div>
-    <style>
-    @keyframes spin {{ from{{transform:rotate(0deg)}} to{{transform:rotate(360deg)}} }}
-    .step-card {{ background:#fff;border:1px solid #e8e4dc;border-radius:14px;padding:1rem 1.25rem;margin-bottom:.75rem;max-width:580px;margin-left:auto;margin-right:auto; }}
-    .step-row {{ display:flex;align-items:flex-start;gap:12px; }}
-    .step-icon {{ width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;margin-top:1px; }}
-    .step-done {{ background:#dcfce7;color:#16a34a; }}
-    .step-active {{ background:#fef3c7;color:#d97706; }}
-    .step-title {{ font-size:.92rem;font-weight:700;color:#111827; }}
-    .step-sub {{ font-size:.78rem;color:#9ca3af;margin-top:2px; }}
-    .step-tag {{ display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:.72rem;font-family:IBM Plex Mono,monospace;color:#6b7280;margin-top:4px; }}
-    </style>
+    <style>@keyframes spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}</style>
+
+    <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e8e4dc;border-radius:16px;padding:1.25rem 1.5rem;box-shadow:0 4px 20px rgba(0,0,0,.06);">
+        <div style="font-size:.88rem;font-weight:700;color:#374151;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:1.1rem;">⚡</span> EnergyIQ is working...
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:.85rem;">
+            <div style="width:22px;height:22px;border-radius:50%;background:#dcfce7;border:1.5px solid #bbf7d0;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px;">✓</div>
+            <div>
+                <div style="font-size:.9rem;font-weight:700;color:#111827;">Geocoding address</div>
+                <div style="font-size:.76rem;color:#9ca3af;margin-top:2px;">Location identified · climate zone mapped</div>
+                <div style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:.7rem;font-family:IBM Plex Mono,monospace;color:#6b7280;margin-top:4px;">nominatim.openstreetmap.org</div>
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:.85rem;">
+            <div style="width:22px;height:22px;border-radius:50%;background:#dcfce7;border:1.5px solid #bbf7d0;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px;">✓</div>
+            <div>
+                <div style="font-size:.9rem;font-weight:700;color:#111827;">Running ML energy model</div>
+                <div style="font-size:.76rem;color:#9ca3af;margin-top:2px;">Random Forest · trained on 18,000 RECS households</div>
+                <div style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:.7rem;font-family:IBM Plex Mono,monospace;color:#6b7280;margin-top:4px;">energy_model.pkl → predict()</div>
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:.85rem;">
+            <div style="width:22px;height:22px;border-radius:50%;background:#dcfce7;border:1.5px solid #bbf7d0;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px;">✓</div>
+            <div>
+                <div style="font-size:.9rem;font-weight:700;color:#111827;">Fetching utility rates + carbon factors</div>
+                <div style="font-size:.76rem;color:#9ca3af;margin-top:2px;">EIA state-level pricing · EPA eGRID emission factors</div>
+                <div style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:.7rem;font-family:IBM Plex Mono,monospace;color:#6b7280;margin-top:4px;">EIA open data → state rate lookup</div>
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:.85rem;">
+            <div style="width:22px;height:22px;border-radius:50%;background:#fef3c7;border:1.5px solid #fde68a;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px;color:#d97706;">⟳</div>
+            <div>
+                <div style="font-size:.9rem;font-weight:700;color:#111827;">Identifying upgrade opportunities</div>
+                <div style="font-size:.76rem;color:#9ca3af;margin-top:2px;">Matching ROI-ranked upgrades to your climate profile</div>
+                <div style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:.7rem;font-family:IBM Plex Mono,monospace;color:#6b7280;margin-top:4px;">ENERGY STAR benchmarks → local context</div>
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:22px;height:22px;border-radius:50%;background:#f3f4f6;border:1.5px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px;color:#d1d5db;">○</div>
+            <div>
+                <div style="font-size:.9rem;font-weight:700;color:#9ca3af;">Compiling incentives + market data</div>
+                <div style="font-size:.76rem;color:#d1d5db;margin-top:2px;">DSIRE database · regional market landscape</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align:center;color:#9ca3af;font-size:.76rem;margin-top:.85rem;">
+        Building your personalized report...
+    </div>
     """, unsafe_allow_html=True)
 
-    steps_html = """
-    <div class="step-card">
-        <div style="font-size:.85rem;font-weight:700;color:#374151;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
-            <span>⚡</span> EnergyIQ is working...
-        </div>
-        <div class="step-row" style="margin-bottom:.75rem;">
-            <div class="step-icon step-done">✓</div>
-            <div><div class="step-title">Geocoding address</div>
-            <div class="step-sub">Location identified · climate zone mapped</div>
-            <span class="step-tag">nominatim.openstreetmap.org</span></div>
-        </div>
-        <div class="step-row" style="margin-bottom:.75rem;">
-            <div class="step-icon step-done">✓</div>
-            <div><div class="step-title">Running ML energy model</div>
-            <div class="step-sub">Random Forest · trained on 18,000 RECS households</div>
-            <span class="step-tag">energy_model.pkl → predict()</span></div>
-        </div>
-        <div class="step-row" style="margin-bottom:.75rem;">
-            <div class="step-icon step-done">✓</div>
-            <div><div class="step-title">Fetching utility rates + carbon factors</div>
-            <div class="step-sub">EIA state-level pricing · EPA eGRID emission factors</div>
-            <span class="step-tag">EIA API → state rate lookup</span></div>
-        </div>
-        <div class="step-row" style="margin-bottom:.75rem;">
-            <div class="step-icon step-active">⟳</div>
-            <div><div class="step-title">Identifying upgrade opportunities</div>
-            <div class="step-sub">Matching ROI-ranked upgrades to climate profile</div>
-            <span class="step-tag">ENERGY STAR benchmarks → local context</span></div>
-        </div>
-        <div class="step-row">
-            <div class="step-icon" style="background:#f3f4f6;color:#d1d5db;">○</div>
-            <div><div class="step-title" style="color:#9ca3af;">Compiling incentives + market data</div>
-            <div class="step-sub" style="color:#d1d5db;">DSIRE database · regional market landscape</div></div>
-        </div>
-    </div>
-    <div style="text-align:center;color:#9ca3af;font-size:.78rem;margin-top:.75rem;max-width:580px;margin-left:auto;margin-right:auto;">
-        This takes just a moment. Building your personalized report...
-    </div>
-    """
-    st.markdown(steps_html, unsafe_allow_html=True)
+    time.sleep(2.0)
 
-    import time; time.sleep(2.2)
-
-    prediction = model.predict(pd.DataFrame([{"TOTROOMS":inp["totrooms"],"TOTSQFT_EN":inp["totsqft_en"],"TYPEHUQ":inp["typehuq"],"NHSLDMEM":inp["nhsldmem"],"AIRCOND":inp["aircond"],"FUELHEAT":inp["fuelheat"],"DIVISION":inp["division"],"YEARMADERANGE":inp["yearmaderange"]}]))[0]
-    category   = format_usage_level(prediction)
-    state_name,state_abbr = extract_state_from_address(addr)
-    climate_region = climate_region_from_state(state_abbr)
-    rate        = estimate_cost_per_kwh(state_abbr, inp["heating_label"])
-    annual_cost = prediction * rate
-    carbon_tons = prediction * estimate_carbon_factor(state_abbr)
-    upgrades    = get_upgrade_cards(category,climate_region,inp["aircond_label"],inp["heating_label"],state_abbr)
-    incentives  = get_incentives(state_abbr,state_name,climate_region)
-    market_stats,competitors,trends = get_market_data(state_name,state_abbr,rate,climate_region)
-    neighborhood = get_neighborhood_comparison(int(prediction))
-    ai_analysis  = get_ai_analysis(addr,state_name,climate_region,category,annual_cost,prediction,carbon_tons,upgrades,rate,inp["nhsldmem"],inp["heating_label"],inp["aircond_label"])
+    prediction=model.predict(pd.DataFrame([{"TOTROOMS":inp["totrooms"],"TOTSQFT_EN":inp["totsqft_en"],"TYPEHUQ":inp["typehuq"],"NHSLDMEM":inp["nhsldmem"],"AIRCOND":inp["aircond"],"FUELHEAT":inp["fuelheat"],"DIVISION":inp["division"],"YEARMADERANGE":inp["yearmaderange"]}]))[0]
+    category=format_usage_level(prediction)
+    state_name,state_abbr=extract_state_from_address(addr)
+    climate_region=climate_region_from_state(state_abbr)
+    rate=estimate_cost_per_kwh(state_abbr,inp["heating_label"])
+    annual_cost=prediction*rate
+    carbon_tons=prediction*estimate_carbon_factor(state_abbr)
+    upgrades=get_upgrade_cards(category,climate_region,inp["aircond_label"],inp["heating_label"],state_abbr)
+    incentives=get_incentives(state_abbr,state_name,climate_region)
+    market_stats,competitors,trends=get_market_data(state_name,state_abbr,rate,climate_region)
+    neighborhood=get_neighborhood_comparison(int(prediction))
+    ai_analysis=get_ai_analysis(addr,state_name,climate_region,category,annual_cost,prediction,carbon_tons,upgrades,rate,inp["nhsldmem"],inp["heating_label"],inp["aircond_label"])
 
     go_to_report({"prediction":prediction,"category":category,"address":addr,"totrooms":inp["totrooms"],"totsqft_en":inp["totsqft_en"],"nhsldmem":inp["nhsldmem"],"housing_type_label":inp["housing_type_label"],"sqft_estimated":inp["sqft_estimated"],"aircond_label":inp["aircond_label"],"heating_label":inp["heating_label"],"annual_cost":annual_cost,"carbon_tons":carbon_tons,"state_name":state_name,"state_abbr":state_abbr,"climate_region":climate_region,"rate":rate,"upgrades":upgrades,"incentives":incentives,"market_stats":market_stats,"competitors":competitors,"trends":trends,"neighborhood":neighborhood,"ai_analysis":ai_analysis})
     st.rerun()
 
-# ════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
 # PAGE 2 — REPORT
-# ════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 elif st.session_state.page=="report":
     d=st.session_state.report_data
 
-    # ── Sidebar nav CSS + score ring ──────────────────────────────────
-    score = d.get("efficiency_score", None)
-    if score is None:
-        prediction_val = d["prediction"]
-        if prediction_val < 6000:   score = 88
-        elif prediction_val < 9000: score = 74
-        elif prediction_val < 12000: score = 58
-        elif prediction_val < 15000: score = 42
-        else: score = 28
+    score=calc_score(d["prediction"])
+    score_color="#16a34a" if score>=75 else ("#d97706" if score>=50 else "#dc2626")
 
-    score_color = "#16a34a" if score >= 75 else ("#d97706" if score >= 50 else "#dc2626")
-
+    # Sidebar nav with score ring
     st.markdown(f"""
     <style>
-    /* Floating sidebar nav */
-    .sidebar-nav {{
-        position: fixed;
-        left: 1.2rem;
-        top: 50%;
-        transform: translateY(-50%);
-        background: #ffffff;
-        border: 1px solid #e8e4dc;
-        border-radius: 16px;
-        padding: 1rem .75rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,.08);
-        z-index: 999;
-        min-width: 140px;
-    }}
-    .sidebar-nav a {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: .78rem;
-        font-weight: 600;
-        color: #6b7280;
-        text-decoration: none;
-        padding: 5px 4px;
-        border-radius: 8px;
-        transition: all .15s;
-        white-space: nowrap;
-    }}
-    .sidebar-nav a:hover {{ color: #111827; background: #f9f7f4; }}
-    .sidebar-nav a.active {{ color: #d97706; font-weight: 700; }}
-    .sidebar-nav .nav-dot {{
-        width: 7px; height: 7px; border-radius: 50%;
-        background: #e8e4dc; flex-shrink: 0;
-        transition: background .15s;
-    }}
-    .sidebar-nav a.active .nav-dot,
-    .sidebar-nav a:hover .nav-dot {{ background: #d97706; }}
-    .sidebar-nav .nav-divider {{
-        height: 1px; background: #f3f4f6;
-        margin: .5rem 0;
-    }}
-    .score-ring-wrap {{
-        text-align: center;
-        margin-bottom: .75rem;
-        padding-bottom: .75rem;
-        border-bottom: 1px solid #f3f4f6;
-    }}
-    .score-ring-svg {{ width: 64px; height: 64px; }}
-
-    /* Section anchors */
-    .section-anchor {{ position: relative; top: -80px; display: block; visibility: hidden; }}
-
-    @media (max-width: 900px) {{
-        .sidebar-nav {{ display: none; }}
-    }}
+    @keyframes spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}
+    .section-anchor{{position:relative;top:-70px;display:block;visibility:hidden;}}
     </style>
-
     <div class="sidebar-nav">
-        <div class="score-ring-wrap">
-            <svg class="score-ring-svg" viewBox="0 0 64 64">
+        <div style="text-align:center;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid #f3f4f6;">
+            <svg width="64" height="64" viewBox="0 0 64 64">
                 <circle cx="32" cy="32" r="26" fill="none" stroke="#f3f4f6" stroke-width="5"/>
                 <circle cx="32" cy="32" r="26" fill="none" stroke="{score_color}" stroke-width="5"
-                    stroke-dasharray="{int(score/100*163.4)} 163.4"
-                    stroke-linecap="round"
+                    stroke-dasharray="{int(score/100*163.4)} 163.4" stroke-linecap="round"
                     transform="rotate(-90 32 32)"/>
-                <text x="32" y="36" text-anchor="middle"
-                    font-size="13" font-weight="800" fill="{score_color}"
-                    font-family="IBM Plex Mono, monospace">{score}</text>
+                <text x="32" y="36" text-anchor="middle" font-size="13" font-weight="800"
+                    fill="{score_color}" font-family="IBM Plex Mono,monospace">{score}</text>
             </svg>
-            <div style="font-size:.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-top:2px;">Energy Score</div>
+            <div style="font-size:.6rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-top:2px;">Energy Score</div>
         </div>
-        <a href="#overview" class="active"><span class="nav-dot"></span>Overview</a>
+        <a href="#overview"><span class="nav-dot"></span>Overview</a>
         <a href="#breakdown"><span class="nav-dot"></span>Breakdown</a>
         <a href="#ai-analysis"><span class="nav-dot"></span>AI Summary</a>
         <a href="#upgrades"><span class="nav-dot"></span>Upgrades</a>
@@ -616,13 +634,9 @@ elif st.session_state.page=="report":
     """, unsafe_allow_html=True)
 
     # Nav bar
-    st.markdown("""
-    <div class="nav-bar">
-        <div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div>
-        <div class="nav-tag">Energy Report</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="nav-bar"><div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div><div class="nav-tag">Energy Report</div></div>', unsafe_allow_html=True)
 
+    # Header
     h1,h2=st.columns([.78,.22])
     with h1:
         st.markdown('<a class="section-anchor" id="overview"></a>', unsafe_allow_html=True)
@@ -638,6 +652,7 @@ elif st.session_state.page=="report":
     with c2: st.markdown(f'<div class="metric-card metric-card-slate"><div class="metric-label">Annual Consumption</div><div class="metric-value">{d["prediction"]:,.0f} kWh</div><div class="metric-subtle">{d["category"]} usage profile</div></div>',unsafe_allow_html=True)
     with c3: st.markdown(f'<div class="metric-card metric-card-green"><div class="metric-label">Carbon Footprint</div><div class="metric-value">{d["carbon_tons"]:.1f} tCO2e</div><div class="metric-subtle">Estimated annual impact</div></div>',unsafe_allow_html=True)
 
+    # ── Charts row 1 — NO panel-card div wrapping ──────────────────────
     st.markdown('<a class="section-anchor" id="breakdown"></a>', unsafe_allow_html=True)
     monthly_df  =build_monthly_profile(d["prediction"],d["aircond_label"],d["heating_label"],d["climate_region"])
     tod_df      =build_time_of_day_profile(d["category"],d["aircond_label"])
@@ -645,21 +660,16 @@ elif st.session_state.page=="report":
 
     cl,cr=st.columns(2)
     with cl:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("### Electricity Breakdown")
-        st.caption("Estimated annual consumption by category.")
-        fig,ax=plt.subplots(figsize=(6,5))
+        st.markdown('<div class="chart-wrap"><div class="chart-title">Electricity Breakdown</div><div class="chart-caption">Estimated annual consumption by category.</div></div>', unsafe_allow_html=True)
+        fig,ax=plt.subplots(figsize=(6,4.5))
         colors=["#d97706","#16a34a","#64748b","#ea580c","#15803d"]
         wedges,_,_=ax.pie(breakdown_df["Estimated kWh"],autopct="%1.0f%%",startangle=90,colors=colors,textprops={"color":"white","fontsize":10})
         ax.axis("equal")
-        ax.legend(wedges,breakdown_df["Category"],title="Category",loc="center left",bbox_to_anchor=(1.0,.5),labelcolor="#374151")
+        ax.legend(wedges,breakdown_df["Category"],title="Category",loc="center left",bbox_to_anchor=(1.0,.5),labelcolor="#374151",fontsize=9)
         fig.patch.set_facecolor("#ffffff"); ax.set_facecolor("#ffffff")
         st.pyplot(fig); plt.close(fig)
-        st.markdown('</div>', unsafe_allow_html=True)
     with cr:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("### Monthly Cost Estimate")
-        st.caption("Seasonal billing pattern based on climate region.")
+        st.markdown('<div class="chart-wrap"><div class="chart-title">Monthly Cost Estimate</div><div class="chart-caption">Seasonal billing pattern based on climate region.</div></div>', unsafe_allow_html=True)
         cost_df=monthly_df.copy(); cost_df["Cost ($)"]=cost_df["Estimated kWh"]*d["rate"]
         fig2,ax2=plt.subplots(figsize=(7,4))
         ax2.bar(cost_df["Month"],cost_df["Cost ($)"],color="#d97706",width=0.6,alpha=0.85)
@@ -668,25 +678,23 @@ elif st.session_state.page=="report":
         ax2.set_facecolor("#ffffff"); fig2.patch.set_facecolor("#ffffff")
         for sp in ax2.spines.values(): sp.set_color("#e8e4dc")
         st.pyplot(fig2); plt.close(fig2)
-        st.markdown('</div>', unsafe_allow_html=True)
 
+    # Charts row 2
     cl2,cr2=st.columns(2)
     with cl2:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("### Monthly Usage Trend"); st.caption("Seasonal kWh estimate.")
+        st.markdown('<div class="chart-wrap"><div class="chart-title">Monthly Usage Trend</div><div class="chart-caption">Seasonal kWh estimate — not actual bill history.</div></div>', unsafe_allow_html=True)
         month_order=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
         monthly_sorted=monthly_df.set_index("Month").reindex(month_order)
-        st.line_chart(monthly_sorted); st.markdown('</div>', unsafe_allow_html=True)
+        st.line_chart(monthly_sorted)
     with cr2:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("### Time-of-Day Usage"); st.caption("Typical daily load pattern.")
-        st.bar_chart(tod_df.set_index("Time of Day")); st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-wrap"><div class="chart-title">Time-of-Day Usage</div><div class="chart-caption">Typical daily load pattern estimate.</div></div>', unsafe_allow_html=True)
+        st.bar_chart(tod_df.set_index("Time of Day"))
 
+    # AI Analysis
     st.markdown('<a class="section-anchor" id="ai-analysis"></a>', unsafe_allow_html=True)
-    # AI Panel
     ai=d["ai_analysis"]
     st.markdown('<div class="ai-panel">', unsafe_allow_html=True)
-    st.markdown("""
+    st.markdown(f"""
     <div class="ai-header">
         <div class="ai-dot-ring">🤖</div>
         <div>
@@ -694,8 +702,6 @@ elif st.session_state.page=="report":
             <div class="ai-header-sub">Generated from ML prediction · regional utility data · RECS benchmarks · climate zone analysis</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
-    st.markdown(f"""
     <div class="ai-grid">
         <div class="ai-card"><div class="ai-card-label">📊 Energy Overview</div><div class="ai-card-text">{ai["overview"]}</div></div>
         <div class="ai-card"><div class="ai-card-label">🌡️ Climate Context</div><div class="ai-card-text">{ai["climate"]}</div></div>
@@ -708,8 +714,8 @@ elif st.session_state.page=="report":
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<a class="section-anchor" id="upgrades"></a>', unsafe_allow_html=True)
     # Upgrades
+    st.markdown('<a class="section-anchor" id="upgrades"></a>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Top Upgrade Opportunities</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">Ranked by ROI for your climate region. Green top border = high priority.</p>', unsafe_allow_html=True)
     for row_start in [0,3]:
@@ -736,8 +742,8 @@ elif st.session_state.page=="report":
                 </div>""", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<a class="section-anchor" id="incentives"></a>', unsafe_allow_html=True)
     # Incentives
+    st.markdown('<a class="section-anchor" id="incentives"></a>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Available Incentives</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">Federal, state, and utility programs available for this address. Based on DSIRE database structure.</p>', unsafe_allow_html=True)
     ic1,ic2=st.columns(2)
@@ -746,8 +752,8 @@ elif st.session_state.page=="report":
             st.markdown(f'<div class="incentive-card"><div class="incentive-type">{inc["type"]}</div><div class="incentive-name">{inc["name"]}</div><div class="incentive-value">{inc["value"]}</div></div>',unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<a class="section-anchor" id="neighborhood"></a>', unsafe_allow_html=True)
     # Neighborhood
+    st.markdown('<a class="section-anchor" id="neighborhood"></a>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Neighborhood Comparison</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">How this home compares to others with similar profiles nearby.</p>', unsafe_allow_html=True)
     neighborhood=d["neighborhood"]; max_kwh=max(h["kwh"] for h in neighborhood)
@@ -759,7 +765,7 @@ elif st.session_state.page=="report":
         bar_color="#d97706" if row["you"] else "#d1d5db"
         score_str=f"{row['score']}/100" if row["score"] else "—"
         eff_color="#16a34a" if row["score"] and row["score"]>=80 else ("#d97706" if row["score"] and row["score"]>=55 else "#dc2626") if row["score"] else "#9ca3af"
-        rows_html+=f'''<tr>
+        rows_html+=f"""<tr>
             <td{you_cls} style="padding:12px 8px;border-bottom:1px solid #f3f4f6;">{row["label"]}{you_tag}</td>
             <td style="padding:12px 8px;border-bottom:1px solid #f3f4f6;">
                 <div style="display:inline-flex;align-items:center;gap:10px;">
@@ -772,8 +778,8 @@ elif st.session_state.page=="report":
             <td style="padding:12px 8px;border-bottom:1px solid #f3f4f6;">
                 <span style="font-family:IBM Plex Mono,monospace;font-size:.9rem;font-weight:700;color:{eff_color};">{score_str}</span>
             </td>
-        </tr>'''
-    st.markdown(f'''<div class="panel-card" style="padding:0;overflow:hidden;">
+        </tr>"""
+    st.markdown(f"""<div style="background:#fff;border:1px solid #e8e4dc;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:1rem;">
         <table class="comp-table" style="margin:0;">
             <thead><tr>
                 <th style="padding:14px 8px 10px;">Home profile</th>
@@ -782,11 +788,11 @@ elif st.session_state.page=="report":
             </tr></thead>
             <tbody>{rows_html}</tbody>
         </table>
-    </div>''', unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<a class="section-anchor" id="market"></a>', unsafe_allow_html=True)
     # Market
+    st.markdown('<a class="section-anchor" id="market"></a>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Residential Energy Market Landscape</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">Regional market context, key players, and adoption trends for your area.</p>', unsafe_allow_html=True)
     ms_cols=st.columns(3)
@@ -799,25 +805,24 @@ elif st.session_state.page=="report":
     with ml:
         comp_rows=""
         for c in d["competitors"]:
-            comp_rows+=f'''<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                <div>
-                    <div style="font-size:.92rem;font-weight:600;color:#111827;">{c["name"]}</div>
-                    <div style="font-size:.76rem;color:#d97706;font-weight:600;margin-top:1px;">{c["type"]}</div>
-                </div>
+            comp_rows+=f"""<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6;">
+                <div><div style="font-size:.92rem;font-weight:600;color:#111827;">{c["name"]}</div>
+                <div style="font-size:.76rem;color:#d97706;font-weight:600;margin-top:1px;">{c["type"]}</div></div>
                 <div style="display:flex;align-items:center;gap:10px;">
                     <div style="width:90px;height:5px;border-radius:3px;background:#f3f4f6;overflow:hidden;">
                         <div style="width:{c["share"]}%;height:100%;background:#d97706;border-radius:3px;"></div>
                     </div>
                     <span style="font-family:IBM Plex Mono,monospace;font-size:.82rem;color:#6b7280;min-width:28px;">{c["share"]}%</span>
                 </div>
-            </div>'''
-        st.markdown(f'''<div class="panel-card">
-            <div style="font-size:1.1rem;font-weight:700;color:#111827;margin-bottom:.2rem;">Key Players in Your Market</div>
+            </div>"""
+        st.markdown(f"""<div style="background:#fff;border:1px solid #e8e4dc;border-radius:16px;padding:1.25rem;box-shadow:0 2px 8px rgba(0,0,0,.04);">
+            <div style="font-size:1.05rem;font-weight:700;color:#111827;margin-bottom:.2rem;">Key Players in Your Market</div>
             <div style="font-size:.8rem;color:#9ca3af;margin-bottom:1rem;">Market share estimates for residential energy services.</div>
             {comp_rows}
-        </div>''', unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
     with mr:
-        trends=d["trends"]; fig3,ax3=plt.subplots(figsize=(6,4.2))
+        trends=d["trends"]
+        fig3,ax3=plt.subplots(figsize=(6,4.2))
         ax3.plot(trends["labels"],trends["solar"],  "o-",color="#d97706",lw=2.5,ms=6,label="Solar %")
         ax3.plot(trends["labels"],trends["battery"],"o-",color="#16a34a",lw=2.5,ms=6,label="Battery %")
         ax3.plot(trends["labels"],trends["ev"],     "o-",color="#64748b",lw=2.5,ms=6,label="EV %")
@@ -826,20 +831,12 @@ elif st.session_state.page=="report":
         for sp in ax3.spines.values(): sp.set_color("#e8e4dc")
         ax3.yaxis.set_major_formatter(plt.FuncFormatter(lambda x,_: f"{int(x)}%"))
         ax3.legend(facecolor="#ffffff",labelcolor="#374151",framealpha=1,edgecolor="#e8e4dc",fontsize=9)
-        ax3.set_title("Adoption Trends in Your Area", fontsize=11, fontweight="bold", color="#111827", pad=10)
+        ax3.set_title("Adoption Trends in Your Area",fontsize=11,fontweight="bold",color="#111827",pad=10)
         fig3.tight_layout()
-        st.markdown('<div class="panel-card" style="padding-bottom:.5rem;">', unsafe_allow_html=True)
-        st.caption("% of homes with solar, battery storage, and EVs.")
         st.pyplot(fig3); plt.close(fig3)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     if d.get("sqft_estimated"):
         st.info("Square footage was estimated from room count. Providing exact square footage will improve prediction accuracy.")
     st.caption("Disclaimer: All figures are location-aware estimates based on address context, state data, and home profile — not live utility records. Sources: EIA RECS, EPA eGRID, DSIRE, NREL, Lawrence Berkeley Lab.")
-    st.markdown("""
-    <div style="text-align:center;padding:1.5rem 0 .5rem;border-top:1px solid #e8e4dc;margin-top:1rem;">
-        <div style="font-size:.95rem;font-weight:800;color:#374151;letter-spacing:-.02em;margin-bottom:.3rem;">⚡ EnergyIQ</div>
-        <div style="color:#9ca3af;font-size:.8rem;">Built with Streamlit · Random Forest trained on EIA RECS · Incentives: DSIRE · Address: OpenStreetMap Nominatim</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;padding:1.5rem 0 .5rem;border-top:1px solid #e8e4dc;margin-top:1rem;"><div style="font-size:.95rem;font-weight:800;color:#374151;margin-bottom:.3rem;">⚡ EnergyIQ</div><div style="color:#9ca3af;font-size:.8rem;">Built with Streamlit · Random Forest trained on EIA RECS · Incentives: DSIRE · Address: OpenStreetMap Nominatim</div></div>', unsafe_allow_html=True)

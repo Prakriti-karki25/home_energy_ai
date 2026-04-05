@@ -23,10 +23,13 @@ html, body, [class*="css"] { font-family: 'Figtree', sans-serif; }
     color: #1a1a1a;
 }
 
-/* ── Fix padding so nav bar does not cut content ── */
+/* ── Hide Streamlit default header, fix padding ── */
+header[data-testid="stHeader"] { display: none !important; }
+#MainMenu { display: none !important; }
+footer { display: none !important; }
 .block-container {
     max-width: 1200px;
-    padding-top: 1rem !important;
+    padding-top: 0 !important;
     padding-bottom: 3rem;
     padding-left: 2rem !important;
     padding-right: 2rem !important;
@@ -418,8 +421,6 @@ if st.session_state.page=="form":
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Form card
-    st.markdown('<div class="form-card">', unsafe_allow_html=True)
-
     # Address
     st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
     address_query    = st.text_input("addr_hidden", placeholder="Start typing any US address...", key="addr_input", label_visibility="collapsed")
@@ -486,7 +487,6 @@ if st.session_state.page=="form":
             st.session_state["loading_inputs"]={"totrooms":totrooms,"totsqft_en":totsqft_en,"typehuq":typehuq,"nhsldmem":nhsldmem,"aircond":aircond,"fuelheat":fuelheat,"division":division,"yearmaderange":yearmaderange,"aircond_label":aircond_label,"heating_label":heating_label,"sqft_estimated":sqft_estimated,"housing_type_label":housing_type_label}
             st.session_state["page"]="loading"; st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     b1,b2,b3=st.columns(3)
@@ -693,25 +693,25 @@ elif st.session_state.page=="report":
     # AI Analysis
     st.markdown('<a class="section-anchor" id="ai-analysis"></a>', unsafe_allow_html=True)
     ai=d["ai_analysis"]
-    st.markdown('<div class="ai-panel">', unsafe_allow_html=True)
     st.markdown(f"""
-    <div class="ai-header">
-        <div class="ai-dot-ring">🤖</div>
-        <div>
-            <div class="ai-header-title">AI Analysis &amp; Recommendations</div>
-            <div class="ai-header-sub">Generated from ML prediction · regional utility data · RECS benchmarks · climate zone analysis</div>
+    <div class="ai-panel">
+        <div class="ai-header">
+            <div class="ai-dot-ring">🤖</div>
+            <div>
+                <div class="ai-header-title">AI Analysis &amp; Recommendations</div>
+                <div class="ai-header-sub">Generated from ML prediction · regional utility data · RECS benchmarks · climate zone analysis</div>
+            </div>
+        </div>
+        <div class="ai-grid">
+            <div class="ai-card"><div class="ai-card-label">📊 Energy Overview</div><div class="ai-card-text">{ai["overview"]}</div></div>
+            <div class="ai-card"><div class="ai-card-label">🌡️ Climate Context</div><div class="ai-card-text">{ai["climate"]}</div></div>
+            <div class="ai-card"><div class="ai-card-label">⏱️ Peak Load Pattern</div><div class="ai-card-text">{ai["peak_load"]}</div></div>
+            <div class="ai-card"><div class="ai-card-label">🌿 Carbon Footprint</div><div class="ai-card-text">{ai["carbon"]}</div></div>
+            <div class="ai-card-full"><div class="ai-card-label">🔧 Highest-Impact Action</div><div class="ai-card-text">{ai["top_action"]}</div></div>
+            <div class="ai-card-full"><div class="ai-card-label">🎁 Incentive Opportunity</div><div class="ai-card-text">{ai["incentive_note"]}</div></div>
         </div>
     </div>
-    <div class="ai-grid">
-        <div class="ai-card"><div class="ai-card-label">📊 Energy Overview</div><div class="ai-card-text">{ai["overview"]}</div></div>
-        <div class="ai-card"><div class="ai-card-label">🌡️ Climate Context</div><div class="ai-card-text">{ai["climate"]}</div></div>
-        <div class="ai-card"><div class="ai-card-label">⏱️ Peak Load Pattern</div><div class="ai-card-text">{ai["peak_load"]}</div></div>
-        <div class="ai-card"><div class="ai-card-label">🌿 Carbon Footprint</div><div class="ai-card-text">{ai["carbon"]}</div></div>
-        <div class="ai-card-full"><div class="ai-card-label">🔧 Highest-Impact Action</div><div class="ai-card-text">{ai["top_action"]}</div></div>
-        <div class="ai-card-full"><div class="ai-card-label">🎁 Incentive Opportunity</div><div class="ai-card-text">{ai["incentive_note"]}</div></div>
-    </div>
     """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Upgrades

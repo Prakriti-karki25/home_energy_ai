@@ -302,7 +302,7 @@ def get_ai_analysis(address, state_name, climate_region, category, annual_cost, 
         "incentive_note":f"Federal IRA credits are active through 2032. A 30% solar tax credit, $2,000 heat pump credit, and $1,200 insulation credit can stack together, potentially covering <strong>$5,000-$10,000</strong> of upgrade costs.",
     }
 
-for k,v in [("page","form"),("report_data",None),("selected_address_value","")]:
+for k,v in [("page","form"),("report_data",None),("selected_address_value",""),("loading_address",""),("loading_inputs",{})]:
     if k not in st.session_state: st.session_state[k]=v
 
 def go_to_report(data):
@@ -394,21 +394,9 @@ if st.session_state.page=="form":
     _,bc,_=st.columns([0.15,0.70,0.15])
     with bc:
         if st.button("Generate Energy Report  →",use_container_width=True):
-            input_df=pd.DataFrame([{"TOTROOMS":totrooms,"TOTSQFT_EN":totsqft_en,"TYPEHUQ":typehuq,"NHSLDMEM":nhsldmem,"AIRCOND":aircond,"FUELHEAT":fuelheat,"DIVISION":division,"YEARMADERANGE":yearmaderange}])
-            prediction=model.predict(input_df)[0]
-            category=format_usage_level(prediction)
-            report_address=selected_address if selected_address else address_query
-            state_name,state_abbr=extract_state_from_address(report_address)
-            climate_region=climate_region_from_state(state_abbr)
-            rate=estimate_cost_per_kwh(state_abbr,heating_label)
-            annual_cost=prediction*rate
-            carbon_tons=prediction*estimate_carbon_factor(state_abbr)
-            upgrades=get_upgrade_cards(category,climate_region,aircond_label,heating_label,state_abbr)
-            incentives=get_incentives(state_abbr,state_name,climate_region)
-            market_stats,competitors,trends=get_market_data(state_name,state_abbr,rate,climate_region)
-            neighborhood=get_neighborhood_comparison(int(prediction))
-            ai_analysis=get_ai_analysis(report_address,state_name,climate_region,category,annual_cost,prediction,carbon_tons,upgrades,rate,nhsldmem,heating_label,aircond_label)
-            go_to_report({"prediction":prediction,"category":category,"address":report_address,"totrooms":totrooms,"totsqft_en":totsqft_en,"nhsldmem":nhsldmem,"housing_type_label":housing_type_label,"sqft_estimated":sqft_estimated,"aircond_label":aircond_label,"heating_label":heating_label,"annual_cost":annual_cost,"carbon_tons":carbon_tons,"state_name":state_name,"state_abbr":state_abbr,"climate_region":climate_region,"rate":rate,"upgrades":upgrades,"incentives":incentives,"market_stats":market_stats,"competitors":competitors,"trends":trends,"neighborhood":neighborhood,"ai_analysis":ai_analysis})
+            st.session_state["loading_address"] = selected_address if selected_address else address_query
+            st.session_state["loading_inputs"] = {"totrooms":totrooms,"totsqft_en":totsqft_en,"typehuq":typehuq,"nhsldmem":nhsldmem,"aircond":aircond,"fuelheat":fuelheat,"division":division,"yearmaderange":yearmaderange,"aircond_label":aircond_label,"heating_label":heating_label,"sqft_estimated":sqft_estimated,"housing_type_label":housing_type_label}
+            st.session_state["page"] = "loading"
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -431,13 +419,203 @@ if st.session_state.page=="form":
     </div>
     """, unsafe_allow_html=True)
 
+
+# ════════════════════════════════════════════════════
+# PAGE 1.5 — LOADING SCREEN
+# ════════════════════════════════════════════════════
+elif st.session_state.page=="loading":
+    inp = st.session_state.get("loading_inputs",{})
+    addr = st.session_state.get("loading_address","")
+
+    st.markdown("""
+    <div class="nav-bar">
+        <div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div>
+        <div class="nav-tag">Generating Report</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="max-width:580px;margin:3rem auto 0;text-align:center;">
+        <div style="width:56px;height:56px;border-radius:50%;border:3px solid #fde68a;border-top-color:#d97706;
+                    animation:spin 1s linear infinite;margin:0 auto 1.5rem;"></div>
+        <div style="font-size:1.5rem;font-weight:800;color:#111827;letter-spacing:-.02em;margin-bottom:.5rem;">
+            Generating your energy report
+        </div>
+        <div style="font-size:.9rem;color:#9ca3af;margin-bottom:2rem;">{addr}</div>
+    </div>
+    <style>
+    @keyframes spin {{ from{{transform:rotate(0deg)}} to{{transform:rotate(360deg)}} }}
+    .step-card {{ background:#fff;border:1px solid #e8e4dc;border-radius:14px;padding:1rem 1.25rem;margin-bottom:.75rem;max-width:580px;margin-left:auto;margin-right:auto; }}
+    .step-row {{ display:flex;align-items:flex-start;gap:12px; }}
+    .step-icon {{ width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;margin-top:1px; }}
+    .step-done {{ background:#dcfce7;color:#16a34a; }}
+    .step-active {{ background:#fef3c7;color:#d97706; }}
+    .step-title {{ font-size:.92rem;font-weight:700;color:#111827; }}
+    .step-sub {{ font-size:.78rem;color:#9ca3af;margin-top:2px; }}
+    .step-tag {{ display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:.72rem;font-family:IBM Plex Mono,monospace;color:#6b7280;margin-top:4px; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    steps_html = """
+    <div class="step-card">
+        <div style="font-size:.85rem;font-weight:700;color:#374151;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
+            <span>⚡</span> EnergyIQ is working...
+        </div>
+        <div class="step-row" style="margin-bottom:.75rem;">
+            <div class="step-icon step-done">✓</div>
+            <div><div class="step-title">Geocoding address</div>
+            <div class="step-sub">Location identified · climate zone mapped</div>
+            <span class="step-tag">nominatim.openstreetmap.org</span></div>
+        </div>
+        <div class="step-row" style="margin-bottom:.75rem;">
+            <div class="step-icon step-done">✓</div>
+            <div><div class="step-title">Running ML energy model</div>
+            <div class="step-sub">Random Forest · trained on 18,000 RECS households</div>
+            <span class="step-tag">energy_model.pkl → predict()</span></div>
+        </div>
+        <div class="step-row" style="margin-bottom:.75rem;">
+            <div class="step-icon step-done">✓</div>
+            <div><div class="step-title">Fetching utility rates + carbon factors</div>
+            <div class="step-sub">EIA state-level pricing · EPA eGRID emission factors</div>
+            <span class="step-tag">EIA API → state rate lookup</span></div>
+        </div>
+        <div class="step-row" style="margin-bottom:.75rem;">
+            <div class="step-icon step-active">⟳</div>
+            <div><div class="step-title">Identifying upgrade opportunities</div>
+            <div class="step-sub">Matching ROI-ranked upgrades to climate profile</div>
+            <span class="step-tag">ENERGY STAR benchmarks → local context</span></div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon" style="background:#f3f4f6;color:#d1d5db;">○</div>
+            <div><div class="step-title" style="color:#9ca3af;">Compiling incentives + market data</div>
+            <div class="step-sub" style="color:#d1d5db;">DSIRE database · regional market landscape</div></div>
+        </div>
+    </div>
+    <div style="text-align:center;color:#9ca3af;font-size:.78rem;margin-top:.75rem;max-width:580px;margin-left:auto;margin-right:auto;">
+        This takes just a moment. Building your personalized report...
+    </div>
+    """
+    st.markdown(steps_html, unsafe_allow_html=True)
+
+    import time; time.sleep(2.2)
+
+    prediction = model.predict(pd.DataFrame([{"TOTROOMS":inp["totrooms"],"TOTSQFT_EN":inp["totsqft_en"],"TYPEHUQ":inp["typehuq"],"NHSLDMEM":inp["nhsldmem"],"AIRCOND":inp["aircond"],"FUELHEAT":inp["fuelheat"],"DIVISION":inp["division"],"YEARMADERANGE":inp["yearmaderange"]}]))[0]
+    category   = format_usage_level(prediction)
+    state_name,state_abbr = extract_state_from_address(addr)
+    climate_region = climate_region_from_state(state_abbr)
+    rate        = estimate_cost_per_kwh(state_abbr, inp["heating_label"])
+    annual_cost = prediction * rate
+    carbon_tons = prediction * estimate_carbon_factor(state_abbr)
+    upgrades    = get_upgrade_cards(category,climate_region,inp["aircond_label"],inp["heating_label"],state_abbr)
+    incentives  = get_incentives(state_abbr,state_name,climate_region)
+    market_stats,competitors,trends = get_market_data(state_name,state_abbr,rate,climate_region)
+    neighborhood = get_neighborhood_comparison(int(prediction))
+    ai_analysis  = get_ai_analysis(addr,state_name,climate_region,category,annual_cost,prediction,carbon_tons,upgrades,rate,inp["nhsldmem"],inp["heating_label"],inp["aircond_label"])
+
+    go_to_report({"prediction":prediction,"category":category,"address":addr,"totrooms":inp["totrooms"],"totsqft_en":inp["totsqft_en"],"nhsldmem":inp["nhsldmem"],"housing_type_label":inp["housing_type_label"],"sqft_estimated":inp["sqft_estimated"],"aircond_label":inp["aircond_label"],"heating_label":inp["heating_label"],"annual_cost":annual_cost,"carbon_tons":carbon_tons,"state_name":state_name,"state_abbr":state_abbr,"climate_region":climate_region,"rate":rate,"upgrades":upgrades,"incentives":incentives,"market_stats":market_stats,"competitors":competitors,"trends":trends,"neighborhood":neighborhood,"ai_analysis":ai_analysis})
+    st.rerun()
+
 # ════════════════════════════════════════════════════
 # PAGE 2 — REPORT
 # ════════════════════════════════════════════════════
 elif st.session_state.page=="report":
     d=st.session_state.report_data
 
-    # Nav
+    # ── Sidebar nav CSS + score ring ──────────────────────────────────
+    score = d.get("efficiency_score", None)
+    if score is None:
+        prediction_val = d["prediction"]
+        if prediction_val < 6000:   score = 88
+        elif prediction_val < 9000: score = 74
+        elif prediction_val < 12000: score = 58
+        elif prediction_val < 15000: score = 42
+        else: score = 28
+
+    score_color = "#16a34a" if score >= 75 else ("#d97706" if score >= 50 else "#dc2626")
+
+    st.markdown(f"""
+    <style>
+    /* Floating sidebar nav */
+    .sidebar-nav {{
+        position: fixed;
+        left: 1.2rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #ffffff;
+        border: 1px solid #e8e4dc;
+        border-radius: 16px;
+        padding: 1rem .75rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,.08);
+        z-index: 999;
+        min-width: 140px;
+    }}
+    .sidebar-nav a {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-decoration: none;
+        padding: 5px 4px;
+        border-radius: 8px;
+        transition: all .15s;
+        white-space: nowrap;
+    }}
+    .sidebar-nav a:hover {{ color: #111827; background: #f9f7f4; }}
+    .sidebar-nav a.active {{ color: #d97706; font-weight: 700; }}
+    .sidebar-nav .nav-dot {{
+        width: 7px; height: 7px; border-radius: 50%;
+        background: #e8e4dc; flex-shrink: 0;
+        transition: background .15s;
+    }}
+    .sidebar-nav a.active .nav-dot,
+    .sidebar-nav a:hover .nav-dot {{ background: #d97706; }}
+    .sidebar-nav .nav-divider {{
+        height: 1px; background: #f3f4f6;
+        margin: .5rem 0;
+    }}
+    .score-ring-wrap {{
+        text-align: center;
+        margin-bottom: .75rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid #f3f4f6;
+    }}
+    .score-ring-svg {{ width: 64px; height: 64px; }}
+
+    /* Section anchors */
+    .section-anchor {{ position: relative; top: -80px; display: block; visibility: hidden; }}
+
+    @media (max-width: 900px) {{
+        .sidebar-nav {{ display: none; }}
+    }}
+    </style>
+
+    <div class="sidebar-nav">
+        <div class="score-ring-wrap">
+            <svg class="score-ring-svg" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="#f3f4f6" stroke-width="5"/>
+                <circle cx="32" cy="32" r="26" fill="none" stroke="{score_color}" stroke-width="5"
+                    stroke-dasharray="{int(score/100*163.4)} 163.4"
+                    stroke-linecap="round"
+                    transform="rotate(-90 32 32)"/>
+                <text x="32" y="36" text-anchor="middle"
+                    font-size="13" font-weight="800" fill="{score_color}"
+                    font-family="IBM Plex Mono, monospace">{score}</text>
+            </svg>
+            <div style="font-size:.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-top:2px;">Energy Score</div>
+        </div>
+        <a href="#overview" class="active"><span class="nav-dot"></span>Overview</a>
+        <a href="#breakdown"><span class="nav-dot"></span>Breakdown</a>
+        <a href="#ai-analysis"><span class="nav-dot"></span>AI Summary</a>
+        <a href="#upgrades"><span class="nav-dot"></span>Upgrades</a>
+        <a href="#incentives"><span class="nav-dot"></span>Incentives</a>
+        <a href="#neighborhood"><span class="nav-dot"></span>Neighbors</a>
+        <a href="#market"><span class="nav-dot"></span>Market</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Nav bar
     st.markdown("""
     <div class="nav-bar">
         <div class="nav-logo">⚡ Energy<span class="nav-logo-dot">IQ</span></div>
@@ -447,6 +625,7 @@ elif st.session_state.page=="report":
 
     h1,h2=st.columns([.78,.22])
     with h1:
+        st.markdown('<a class="section-anchor" id="overview"></a>', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Your Energy Report</div>', unsafe_allow_html=True)
         if d["address"]: st.markdown(f'<p class="small-muted">📍 {d["address"]}</p>',unsafe_allow_html=True)
     with h2:
@@ -459,6 +638,7 @@ elif st.session_state.page=="report":
     with c2: st.markdown(f'<div class="metric-card metric-card-slate"><div class="metric-label">Annual Consumption</div><div class="metric-value">{d["prediction"]:,.0f} kWh</div><div class="metric-subtle">{d["category"]} usage profile</div></div>',unsafe_allow_html=True)
     with c3: st.markdown(f'<div class="metric-card metric-card-green"><div class="metric-label">Carbon Footprint</div><div class="metric-value">{d["carbon_tons"]:.1f} tCO2e</div><div class="metric-subtle">Estimated annual impact</div></div>',unsafe_allow_html=True)
 
+    st.markdown('<a class="section-anchor" id="breakdown"></a>', unsafe_allow_html=True)
     monthly_df  =build_monthly_profile(d["prediction"],d["aircond_label"],d["heating_label"],d["climate_region"])
     tod_df      =build_time_of_day_profile(d["category"],d["aircond_label"])
     breakdown_df=build_usage_breakdown(d["prediction"],d["aircond_label"],d["nhsldmem"],d["heating_label"],d["climate_region"])
@@ -494,12 +674,15 @@ elif st.session_state.page=="report":
     with cl2:
         st.markdown('<div class="panel-card">', unsafe_allow_html=True)
         st.markdown("### Monthly Usage Trend"); st.caption("Seasonal kWh estimate.")
-        st.line_chart(monthly_df.set_index("Month")); st.markdown('</div>', unsafe_allow_html=True)
+        month_order=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        monthly_sorted=monthly_df.set_index("Month").reindex(month_order)
+        st.line_chart(monthly_sorted); st.markdown('</div>', unsafe_allow_html=True)
     with cr2:
         st.markdown('<div class="panel-card">', unsafe_allow_html=True)
         st.markdown("### Time-of-Day Usage"); st.caption("Typical daily load pattern.")
         st.bar_chart(tod_df.set_index("Time of Day")); st.markdown('</div>', unsafe_allow_html=True)
 
+    st.markdown('<a class="section-anchor" id="ai-analysis"></a>', unsafe_allow_html=True)
     # AI Panel
     ai=d["ai_analysis"]
     st.markdown('<div class="ai-panel">', unsafe_allow_html=True)
@@ -525,6 +708,7 @@ elif st.session_state.page=="report":
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
+    st.markdown('<a class="section-anchor" id="upgrades"></a>', unsafe_allow_html=True)
     # Upgrades
     st.markdown('<div class="section-title">Top Upgrade Opportunities</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">Ranked by ROI for your climate region. Green top border = high priority.</p>', unsafe_allow_html=True)
@@ -552,6 +736,7 @@ elif st.session_state.page=="report":
                 </div>""", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
+    st.markdown('<a class="section-anchor" id="incentives"></a>', unsafe_allow_html=True)
     # Incentives
     st.markdown('<div class="section-title">Available Incentives</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">Federal, state, and utility programs available for this address. Based on DSIRE database structure.</p>', unsafe_allow_html=True)
@@ -561,21 +746,46 @@ elif st.session_state.page=="report":
             st.markdown(f'<div class="incentive-card"><div class="incentive-type">{inc["type"]}</div><div class="incentive-name">{inc["name"]}</div><div class="incentive-value">{inc["value"]}</div></div>',unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
+    st.markdown('<a class="section-anchor" id="neighborhood"></a>', unsafe_allow_html=True)
     # Neighborhood
     st.markdown('<div class="section-title">Neighborhood Comparison</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">How this home compares to others with similar profiles nearby.</p>', unsafe_allow_html=True)
     neighborhood=d["neighborhood"]; max_kwh=max(h["kwh"] for h in neighborhood)
-    st.markdown('<div class="panel-card"><table class="comp-table"><thead><tr><th>Home profile</th><th>Annual usage</th><th>Efficiency score</th></tr></thead><tbody>',unsafe_allow_html=True)
+    rows_html=""
     for row in neighborhood:
         you_tag='<span class="you-tag">you</span>' if row["you"] else ""
         you_cls=' class="you"' if row["you"] else ""
         bar_pct=int(row["kwh"]/max_kwh*100)
-        bar_color="#d97706" if row["you"] else "#e8e4dc"
+        bar_color="#d97706" if row["you"] else "#d1d5db"
         score_str=f"{row['score']}/100" if row["score"] else "—"
-        st.markdown(f'<tr><td{you_cls}>{row["label"]}{you_tag}</td><td><div style="display:inline-flex;align-items:center;gap:10px;"><div style="width:110px;height:5px;border-radius:3px;background:#f3f4f6;overflow:hidden;"><div style="width:{bar_pct}%;height:100%;background:{bar_color};border-radius:3px;"></div></div><span style="font-family:IBM Plex Mono,monospace;font-size:.86rem;color:#374151;">{row["kwh"]:,} kWh</span></div></td><td>{score_str}</td></tr>',unsafe_allow_html=True)
-    st.markdown('</tbody></table></div>',unsafe_allow_html=True)
+        eff_color="#16a34a" if row["score"] and row["score"]>=80 else ("#d97706" if row["score"] and row["score"]>=55 else "#dc2626") if row["score"] else "#9ca3af"
+        rows_html+=f'''<tr>
+            <td{you_cls} style="padding:12px 8px;border-bottom:1px solid #f3f4f6;">{row["label"]}{you_tag}</td>
+            <td style="padding:12px 8px;border-bottom:1px solid #f3f4f6;">
+                <div style="display:inline-flex;align-items:center;gap:10px;">
+                    <div style="width:120px;height:6px;border-radius:3px;background:#f3f4f6;overflow:hidden;">
+                        <div style="width:{bar_pct}%;height:100%;background:{bar_color};border-radius:3px;"></div>
+                    </div>
+                    <span style="font-family:IBM Plex Mono,monospace;font-size:.85rem;color:#374151;font-weight:500;">{row["kwh"]:,} kWh</span>
+                </div>
+            </td>
+            <td style="padding:12px 8px;border-bottom:1px solid #f3f4f6;">
+                <span style="font-family:IBM Plex Mono,monospace;font-size:.9rem;font-weight:700;color:{eff_color};">{score_str}</span>
+            </td>
+        </tr>'''
+    st.markdown(f'''<div class="panel-card" style="padding:0;overflow:hidden;">
+        <table class="comp-table" style="margin:0;">
+            <thead><tr>
+                <th style="padding:14px 8px 10px;">Home profile</th>
+                <th style="padding:14px 8px 10px;">Annual usage</th>
+                <th style="padding:14px 8px 10px;">Efficiency score</th>
+            </tr></thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+    </div>''', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
+    st.markdown('<a class="section-anchor" id="market"></a>', unsafe_allow_html=True)
     # Market
     st.markdown('<div class="section-title">Residential Energy Market Landscape</div>', unsafe_allow_html=True)
     st.markdown('<p class="section-sub">Regional market context, key players, and adoption trends for your area.</p>', unsafe_allow_html=True)
@@ -587,25 +797,41 @@ elif st.session_state.page=="report":
 
     ml,mr=st.columns(2)
     with ml:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("### Key Players in Your Market"); st.caption("Market share estimates for residential energy services.")
+        comp_rows=""
         for c in d["competitors"]:
-            st.markdown(f'<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f3f4f6;"><div><div style="font-size:.92rem;font-weight:600;color:#111827;">{c["name"]}</div><div style="font-size:.78rem;color:#d97706;font-weight:600;">{c["type"]}</div></div><div style="display:flex;align-items:center;gap:10px;"><div style="width:90px;height:5px;border-radius:3px;background:#f3f4f6;overflow:hidden;"><div style="width:{c["share"]}%;height:100%;background:#d97706;border-radius:3px;"></div></div><span style="font-family:IBM Plex Mono,monospace;font-size:.84rem;color:#6b7280;">{c["share"]}%</span></div></div>',unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            comp_rows+=f'''<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6;">
+                <div>
+                    <div style="font-size:.92rem;font-weight:600;color:#111827;">{c["name"]}</div>
+                    <div style="font-size:.76rem;color:#d97706;font-weight:600;margin-top:1px;">{c["type"]}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:90px;height:5px;border-radius:3px;background:#f3f4f6;overflow:hidden;">
+                        <div style="width:{c["share"]}%;height:100%;background:#d97706;border-radius:3px;"></div>
+                    </div>
+                    <span style="font-family:IBM Plex Mono,monospace;font-size:.82rem;color:#6b7280;min-width:28px;">{c["share"]}%</span>
+                </div>
+            </div>'''
+        st.markdown(f'''<div class="panel-card">
+            <div style="font-size:1.1rem;font-weight:700;color:#111827;margin-bottom:.2rem;">Key Players in Your Market</div>
+            <div style="font-size:.8rem;color:#9ca3af;margin-bottom:1rem;">Market share estimates for residential energy services.</div>
+            {comp_rows}
+        </div>''', unsafe_allow_html=True)
     with mr:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        st.markdown("### Adoption Trends in Your Area"); st.caption("% of homes with solar, battery storage, and EVs.")
-        trends=d["trends"]; fig3,ax3=plt.subplots(figsize=(6,4))
-        ax3.plot(trends["labels"],trends["solar"],  "o-",color="#d97706",lw=2,ms=5,label="Solar %")
-        ax3.plot(trends["labels"],trends["battery"],"o-",color="#16a34a",lw=2,ms=5,label="Battery %")
-        ax3.plot(trends["labels"],trends["ev"],     "o-",color="#64748b",lw=2,ms=5,label="EV %")
+        trends=d["trends"]; fig3,ax3=plt.subplots(figsize=(6,4.2))
+        ax3.plot(trends["labels"],trends["solar"],  "o-",color="#d97706",lw=2.5,ms=6,label="Solar %")
+        ax3.plot(trends["labels"],trends["battery"],"o-",color="#16a34a",lw=2.5,ms=6,label="Battery %")
+        ax3.plot(trends["labels"],trends["ev"],     "o-",color="#64748b",lw=2.5,ms=6,label="EV %")
         ax3.set_facecolor("#ffffff"); fig3.patch.set_facecolor("#ffffff")
-        ax3.tick_params(axis='x',colors='#374151'); ax3.tick_params(axis='y',colors='#374151')
+        ax3.tick_params(axis="x",colors="#374151"); ax3.tick_params(axis="y",colors="#374151")
         for sp in ax3.spines.values(): sp.set_color("#e8e4dc")
         ax3.yaxis.set_major_formatter(plt.FuncFormatter(lambda x,_: f"{int(x)}%"))
-        ax3.legend(facecolor="#ffffff",labelcolor="#374151",framealpha=1,edgecolor="#e8e4dc")
+        ax3.legend(facecolor="#ffffff",labelcolor="#374151",framealpha=1,edgecolor="#e8e4dc",fontsize=9)
+        ax3.set_title("Adoption Trends in Your Area", fontsize=11, fontweight="bold", color="#111827", pad=10)
+        fig3.tight_layout()
+        st.markdown('<div class="panel-card" style="padding-bottom:.5rem;">', unsafe_allow_html=True)
+        st.caption("% of homes with solar, battery storage, and EVs.")
         st.pyplot(fig3); plt.close(fig3)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     if d.get("sqft_estimated"):

@@ -2,309 +2,565 @@ import streamlit as st
 import pandas as pd
 import joblib
 import requests
+import matplotlib.pyplot as plt
+import numpy as np
 from pathlib import Path
 
-st.set_page_config(
-    page_title="Home Energy Intelligence AI",
-    page_icon="⚡",
-    layout="wide"
-)
+st.set_page_config(page_title="Home Energy Intelligence AI", page_icon="⚡", layout="wide")
 
 st.markdown("""
 <style>
-    .main-title {
-        font-size: 3.2rem;
-        font-weight: 800;
-        color: white;
-        margin-bottom: 0.4rem;
-        line-height: 1.1;
-    }
-
-    .sub-title {
-        font-size: 1.1rem;
-        color: #b8c2d9;
-        margin-bottom: 1.5rem;
-    }
-
-    .feature-card {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 18px;
-        padding: 1rem;
-        min-height: 120px;
-        margin-bottom: 1rem;
-    }
-
-    .section-title {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: white;
-        margin-top: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .metric-card {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 18px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .metric-label {
-        color: #9fb0d0;
-        font-size: 0.95rem;
-        margin-bottom: 0.25rem;
-    }
-
-    .metric-value {
-        color: white;
-        font-size: 2rem;
-        font-weight: 700;
-    }
-
-    .report-box {
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 18px;
-        padding: 1.2rem;
-        margin-top: 1rem;
-    }
-
-    .highlight-box {
-        background: linear-gradient(90deg, #5a6f1f, #6e8328);
-        color: white;
-        padding: 1rem;
-        border-radius: 14px;
-        font-weight: 600;
-        margin-top: 0.5rem;
-    }
-
-    .small-muted {
-        color: #b8c2d9;
-        font-size: 0.95rem;
-    }
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap');
+html, body, [class*="css"] { font-family: 'Syne', sans-serif; }
+.stApp {
+    background:
+        radial-gradient(circle at top left,  rgba(34,211,238,0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(96,165,250,0.10), transparent 25%),
+        linear-gradient(180deg, #061327 0%, #0a1d3a 48%, #0d2446 100%);
+    color: white;
+}
+.block-container { max-width: 1220px; padding-top: 2rem; padding-bottom: 3rem; }
+.hero-wrap { max-width: 900px; margin: 0 auto 2rem auto; text-align: center; }
+.hero-chip { display: inline-block; padding: .4rem 1rem; border-radius: 999px; background: rgba(56,189,248,.12); color: #d9f3ff; border: 1px solid rgba(56,189,248,.28); font-size: .85rem; margin-bottom: 1.1rem; font-weight: 600; letter-spacing: .04em; }
+.main-title { font-size: 2.8rem; font-weight: 800; line-height: 1.1; color: white; margin-bottom: .8rem; letter-spacing: -.03em; }
+.title-accent { color: #67e8f9; }
+.sub-title { font-size: 1.05rem; color: #c7d6ec; line-height: 1.75; max-width: 680px; margin: 0 auto; }
+.form-card { background: linear-gradient(145deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%); border: 1px solid rgba(103,232,249,.20); border-radius: 28px; padding: 2rem 2rem 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,.30); margin-bottom: 2rem; }
+.addr-label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #8fdcf6; margin-bottom: .5rem; display: block; }
+.addr-dropdown { background: #0d1f3c; border: 1px solid rgba(103,232,249,.25); border-radius: 16px; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,.40); margin-top: 4px; }
+.addr-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(103,232,249,.08); }
+.addr-item:last-child { border-bottom: none; }
+.addr-pin { width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; background: rgba(103,232,249,.10); border: 1px solid rgba(103,232,249,.20); display: flex; align-items: center; justify-content: center; font-size: .95rem; }
+.addr-item-main { font-size: .95rem; font-weight: 600; color: white; line-height: 1.3; }
+.addr-item-sub { font-size: .8rem; color: #8fdcf6; margin-top: 1px; }
+.addr-selected { display: flex; align-items: center; gap: 10px; background: rgba(34,197,94,.10); border: 1px solid rgba(34,197,94,.30); border-radius: 12px; padding: 10px 14px; margin-top: 8px; }
+.addr-selected-text { font-size: .92rem; font-weight: 600; color: #86efac; }
+.field-section-title { font-size: 1rem; font-weight: 700; color: white; margin: 1.4rem 0 .8rem; padding-bottom: .5rem; border-bottom: 1px solid rgba(103,232,249,.12); }
+div[data-testid="stSelectbox"] label, div[data-testid="stTextInput"] label, div[data-testid="stNumberInput"] label { color: #c7d6ec !important; font-weight: 600; font-size: .88rem !important; }
+.metric-card { background: linear-gradient(160deg, rgba(56,189,248,.10) 0%, rgba(255,255,255,.03) 100%); border: 1px solid rgba(103,232,249,.18); border-radius: 20px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.metric-label { color: #8fdcf6; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin-bottom: .4rem; }
+.metric-value { color: white; font-size: 2rem; font-weight: 800; font-family: 'DM Mono', monospace; line-height: 1.1; }
+.metric-subtle { color: #c7d6ec; font-size: .85rem; margin-top: .35rem; }
+.panel-card { background: linear-gradient(160deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%); border: 1px solid rgba(103,232,249,.14); border-radius: 22px; padding: 1.4rem; box-shadow: 0 12px 32px rgba(0,0,0,.18); margin-bottom: 1rem; }
+.ai-panel { background: linear-gradient(145deg, rgba(56,189,248,.08) 0%, rgba(96,165,250,.05) 50%, rgba(255,255,255,.02) 100%); border: 1px solid rgba(103,232,249,.22); border-radius: 22px; padding: 1.6rem; margin-bottom: 1.5rem; box-shadow: 0 12px 40px rgba(0,0,0,.20); }
+.ai-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.2rem; padding-bottom: .9rem; border-bottom: 1px solid rgba(103,232,249,.12); }
+.ai-dot-ring { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #38bdf8, #818cf8); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 0 18px rgba(56,189,248,.4); }
+.ai-header-title { font-size: 1.05rem; font-weight: 700; color: white; }
+.ai-header-sub { font-size: .78rem; color: #8fdcf6; margin-top: 2px; }
+.ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ai-card { background: rgba(255,255,255,.04); border: 1px solid rgba(103,232,249,.10); border-radius: 14px; padding: 1rem 1.1rem; }
+.ai-card-full { background: rgba(255,255,255,.04); border: 1px solid rgba(103,232,249,.10); border-radius: 14px; padding: 1rem 1.1rem; grid-column: 1 / -1; }
+.ai-card-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #67e8f9; margin-bottom: .4rem; }
+.ai-card-text { font-size: .9rem; color: #d4e6f8; line-height: 1.7; }
+.upgrade-card { background: linear-gradient(160deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%); border: 1px solid rgba(103,232,249,.12); border-radius: 18px; padding: 1.1rem; margin-bottom: 1rem; min-height: 270px; }
+.upgrade-card-high   { border-left: 3px solid #22c55e; }
+.upgrade-card-medium { border-left: 3px solid #f59e0b; }
+.upgrade-card-low    { border-left: 3px solid #60a5fa; }
+.pill { display: inline-block; border-radius: 999px; padding: .22rem .7rem; font-size: .75rem; font-weight: 700; }
+.pill-high   { background: rgba(34,197,94,.14);  border: 1px solid rgba(34,197,94,.4);  color: #bbf7d0; }
+.pill-medium { background: rgba(245,158,11,.14); border: 1px solid rgba(245,158,11,.4); color: #fde68a; }
+.pill-low    { background: rgba(96,165,250,.14); border: 1px solid rgba(96,165,250,.4); color: #bfdbfe; }
+.incentive-card { background: rgba(255,255,255,.04); border: 1px solid rgba(103,232,249,.12); border-radius: 14px; padding: .9rem 1rem; margin-bottom: .65rem; }
+.incentive-type  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #8fdcf6; margin-bottom: .2rem; }
+.incentive-name  { font-size: .95rem; font-weight: 600; color: white; margin-bottom: .25rem; }
+.incentive-value { font-family: 'DM Mono', monospace; font-size: 1.1rem; font-weight: 500; color: #22c55e; }
+.market-card { background: linear-gradient(160deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%); border: 1px solid rgba(103,232,249,.12); border-radius: 18px; padding: 1rem; margin-bottom: 1rem; }
+.comp-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.comp-table th { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #8fdcf6; padding: 0 0 10px; text-align: left; border-bottom: 1px solid rgba(103,232,249,.15); }
+.comp-table td { padding: 10px 0; border-bottom: 1px solid rgba(103,232,249,.07); color: #c7d6ec; vertical-align: middle; }
+.comp-table td.you { color: white; font-weight: 700; }
+.you-tag { font-size: .7rem; background: rgba(56,189,248,.18); color: #67e8f9; padding: 2px 8px; border-radius: 999px; margin-left: 7px; }
+.feature-card { background: linear-gradient(160deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%); border: 1px solid rgba(103,232,249,.12); border-radius: 18px; padding: 1.1rem; }
+.feature-title { font-size: 1rem; font-weight: 700; color: white; margin-bottom: .4rem; }
+.feature-text  { color: #c7d6ec; font-size: .9rem; line-height: 1.65; }
+.section-title { font-size: 1.55rem; font-weight: 800; color: white; margin-bottom: .4rem; letter-spacing: -.01em; }
+.section-sub   { color: #8fdcf6; font-size: .88rem; margin-bottom: 1.2rem; }
+.small-muted   { color: #c7d6ec; font-size: .92rem; line-height: 1.65; }
+.footer-note   { color: #aec5e2; text-align: center; font-size: .88rem; padding-top: .2rem; }
+hr { border: none; border-top: 1px solid rgba(103,232,249,.10); margin: 2rem 0; }
+div[data-testid="stExpander"] { border: 1px solid rgba(103,232,249,.12); border-radius: 14px; background: rgba(255,255,255,.02); }
 </style>
 """, unsafe_allow_html=True)
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR   = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR.parent / "models" / "energy_model.pkl"
-
 
 @st.cache_resource
 def load_model():
     return joblib.load(MODEL_PATH)
 
-
 model = load_model()
 
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
-def search_address(query: str):
+def search_address(query):
     if not query or len(query.strip()) < 3:
         return []
-
-    url = "https://nominatim.openstreetmap.org/search"
-    params = {
-        "q": query,
-        "format": "jsonv2",
-        "addressdetails": 1,
-        "limit": 5,
-        "countrycodes": "us"
-    }
-    headers = {
-        "User-Agent": "home-energy-ai/1.0"
-    }
-
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
-        results = response.json()
-        return results
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": query, "format": "jsonv2", "addressdetails": 1, "limit": 6, "countrycodes": "us", "dedupe": 1},
+            headers={"User-Agent": "home-energy-ai/1.0"}, timeout=8
+        )
+        r.raise_for_status(); return r.json()
     except Exception:
         return []
 
+def split_address_parts(display_name):
+    parts = [p.strip() for p in display_name.split(",")]
+    return (parts[0], ", ".join(parts[1:])) if len(parts) >= 2 else (display_name, "")
 
-# HERO SECTION
-st.markdown('<div class="main-title">⚡ Know your home’s energy story instantly</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="sub-title">Get an AI-powered estimate of annual energy use, monthly usage, and practical next-step recommendations for your home.</div>',
-    unsafe_allow_html=True
-)
+def estimate_sqft_if_missing(rooms, housing_type_label):
+    m = {"Apartment":250,"Mobile home":300,"Single-family attached":320,"Single-family detached":350}
+    return max(rooms * m.get(housing_type_label, 300), 1000)
 
-f1, f2, f3 = st.columns(3)
+def format_usage_level(p):
+    return "Low" if p < 6000 else ("Medium" if p < 12000 else "High")
 
-with f1:
-    st.markdown("""
-    <div class="feature-card">
-        <b>⚡ Fast estimate</b><br><br>
-        See annual and monthly usage in seconds based on your home profile.
-    </div>
-    """, unsafe_allow_html=True)
+def estimate_cost_per_kwh(state_abbr, heating_label):
+    rates = {"CA":0.29,"MA":0.28,"CT":0.26,"NY":0.24,"RI":0.24,"NH":0.23,"NJ":0.19,"TX":0.15,"FL":0.15,"GA":0.14,"NC":0.14,"SC":0.15,"OH":0.16,"MI":0.18,"IL":0.17,"MN":0.16,"CO":0.15,"WA":0.12,"OR":0.14,"AZ":0.15,"NV":0.17,"IA":0.14,"MO":0.13,"PA":0.18}
+    return rates.get(state_abbr, 0.17) + (0.005 if heating_label == "Electricity" else 0)
 
-with f2:
-    st.markdown("""
-    <div class="feature-card">
-        <b>🏠 Personalized inputs</b><br><br>
-        Adjust rooms, square footage, home type, heating source, and household size.
-    </div>
-    """, unsafe_allow_html=True)
+def estimate_carbon_factor(state_abbr):
+    if state_abbr in {"WA","OR","CA","NY","VT","ID"}: return 0.00028
+    if state_abbr in {"WV","KY","IN","WY","LA"}:      return 0.00050
+    return 0.00039
 
-with f3:
-    st.markdown("""
-    <div class="feature-card">
-        <b>💡 Smart recommendations</b><br><br>
-        Get simple next steps based on your estimated usage level.
-    </div>
-    """, unsafe_allow_html=True)
+def extract_state_from_address(address):
+    if not address: return None, None
+    m = {"Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA","Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA","Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA","Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD","Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS","Missouri":"MO","Montana":"MT","Nebraska":"NE","Nevada":"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND","Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD","Tennessee":"TN","Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA","Washington":"WA","West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY"}
+    for name, abbr in m.items():
+        if name in address: return name, abbr
+    return None, None
 
-st.markdown("---")
+def climate_region_from_state(state_abbr):
+    if state_abbr in {"TX","FL","AZ","NV","LA","GA","SC","AL","MS"}: return "hot"
+    if state_abbr in {"MN","WI","MI","ND","SD","MT","VT","NH","ME"}: return "cold"
+    if state_abbr in {"CA","WA","OR","NC","VA"}:                      return "mild"
+    return "mixed"
 
-left, right = st.columns([1, 1])
+def build_monthly_profile(annual_kwh, aircond_label, heating_label, climate_region):
+    if   climate_region == "hot":                               w = [.06,.06,.07,.08,.09,.11,.13,.13,.10,.07,.05,.05]
+    elif climate_region == "cold" and heating_label=="Electricity": w = [.13,.12,.10,.07,.06,.05,.05,.05,.06,.08,.11,.12]
+    elif climate_region == "mild":                              w = [.08,.08,.08,.08,.08,.09,.09,.09,.08,.08,.08,.09]
+    elif aircond_label == "Yes":                                w = [.07,.07,.07,.07,.08,.10,.12,.12,.09,.07,.07,.07]
+    else:                                                       w = [1/12]*12
+    total = sum(w); norm = [x/total for x in w]
+    return pd.DataFrame({"Month":["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], "Estimated kWh":[annual_kwh*x for x in norm]})
 
-with left:
-    st.markdown('<div class="section-title">Enter Home Details</div>', unsafe_allow_html=True)
+def build_time_of_day_profile(category, aircond_label):
+    if   category=="High" and aircond_label=="Yes": s={"Morning":.20,"Afternoon":.26,"Evening":.34,"Night":.20}
+    elif category=="High":                          s={"Morning":.22,"Afternoon":.23,"Evening":.33,"Night":.22}
+    elif category=="Medium":                        s={"Morning":.23,"Afternoon":.24,"Evening":.31,"Night":.22}
+    else:                                           s={"Morning":.24,"Afternoon":.23,"Evening":.30,"Night":.23}
+    return pd.DataFrame({"Time of Day":list(s.keys()),"Usage Share":list(s.values())})
 
-    address_query = st.text_input(
-        "Address",
-        placeholder="Start typing an address...",
-        key="address_query"
-    )
+def build_usage_breakdown(prediction, aircond_label, nhsldmem, heating_label, climate_region):
+    if   climate_region=="hot":  hvac=.42 if aircond_label=="Yes" else .30
+    elif climate_region=="cold": hvac=.40 if heating_label=="Electricity" else .30
+    else:                        hvac=.36 if aircond_label=="Yes" else .28
+    appl=.27+min(nhsldmem*.01,.05); light=.10; water=.12; other=max(.08,1-(hvac+appl+light+water))
+    return pd.DataFrame({"Category":["HVAC","Appliances","Lighting","Water Heating","Other"],"Estimated kWh":[prediction*x for x in [hvac,appl,light,water,other]]})
 
-    suggestions = search_address(address_query)
+def get_upgrade_cards(category, climate_region, aircond_label, heating_label, state_abbr):
+    if climate_region == "hot":
+        return [
+            {"icon":"❄️","title":"High-Efficiency Heat Pump","type":"Cooling / HVAC","priority":"high","desc":"Upgrade to SEER 18+ heat pump. Biggest single saving in hot climates where HVAC is 40-48% of usage.","cost":"$5,500-$9,000","savings":f"${260 if category=='High' else 160}/yr","payback":"6-10 yrs","co2":"1.0 tCO2e"},
+            {"icon":"☀️","title":"Rooftop Solar (10 kW)","type":"Solar Generation","priority":"high","desc":"5.5-5.8 peak sun hours/day. Eliminates ~90% of your annual electricity bill.","cost":"$17,000","savings":"$2,100/yr","payback":"5-7 yrs","co2":"3.5 tCO2e"},
+            {"icon":"🌡️","title":"Smart Thermostat","type":"Controls","priority":"high","desc":"Ecobee or Nest learns your schedule, reduces peak-hour HVAC waste. Often qualifies for utility rebates.","cost":"$250","savings":"$180/yr","payback":"1-2 yrs","co2":"0.2 tCO2e"},
+            {"icon":"🏠","title":"Attic Insulation (R-38)","type":"Envelope","priority":"medium","desc":"Poor insulation forces HVAC to work harder. R-38 attic insulation reduces cooling load by 15%.","cost":"$1,800","savings":"$290/yr","payback":"6 yrs","co2":"0.6 tCO2e"},
+            {"icon":"💧","title":"Heat Pump Water Heater","type":"Water Heating","priority":"medium","desc":"3x more efficient than standard electric. Targets 12-14% of your annual electricity usage.","cost":"$1,200","savings":"$310/yr","payback":"4 yrs","co2":"0.4 tCO2e"},
+            {"icon":"🔋","title":"Home Battery (10 kWh)","type":"Storage","priority":"low","desc":"Store solar energy, avoid peak TOU rates, backup power during grid outages.","cost":"$8,000","savings":"$480/yr","payback":"16 yrs","co2":"0.8 tCO2e"},
+        ]
+    elif climate_region == "cold":
+        return [
+            {"icon":"🏠","title":"Air Sealing + Insulation","type":"Envelope","priority":"high","desc":"Cold-climate homes lose 25-35% of heat through the building envelope. The #1 ROI upgrade.","cost":"$2,000-$4,000","savings":"$520/yr","payback":"5-8 yrs","co2":"0.9 tCO2e"},
+            {"icon":"🔥","title":"Cold-Climate Heat Pump","type":"Heating / HVAC","priority":"high","desc":"Rated to -13F. Replaces gas furnace with 40-50% heating cost reduction. 25C federal credit applies.","cost":"$6,500-$11,000","savings":"$780/yr","payback":"8-11 yrs","co2":"1.3 tCO2e"},
+            {"icon":"🌡️","title":"Smart Thermostat","type":"Controls","priority":"high","desc":"Reduces heating waste by learning your schedule. Many utilities offer rebates.","cost":"$250","savings":"$160/yr","payback":"1-2 yrs","co2":"0.2 tCO2e"},
+            {"icon":"💧","title":"Heat Pump Water Heater","type":"Water Heating","priority":"medium","desc":"3x more efficient. Works well in basements, common in Midwest and Northeast homes.","cost":"$1,200-$1,800","savings":"$280/yr","payback":"5-7 yrs","co2":"0.4 tCO2e"},
+            {"icon":"💡","title":"LED Lighting Upgrade","type":"Lighting","priority":"medium","desc":"Lighting is 14% of usage in cold climates. Full LED conversion plus occupancy sensors.","cost":"$400","savings":"$130/yr","payback":"3 yrs","co2":"0.2 tCO2e"},
+            {"icon":"☀️","title":"Rooftop Solar (7 kW)","type":"Solar Generation","priority":"low","desc":"Medium solar potential but still viable. Better economics with IRA credits through 2032.","cost":"$14,000","savings":"$1,100/yr","payback":"12-14 yrs","co2":"2.1 tCO2e"},
+        ]
+    else:
+        sp = "high" if state_abbr in {"CA","AZ","TX","NV","FL","CO"} else "medium"
+        return [
+            {"icon":"☀️","title":"Rooftop Solar (8 kW)","type":"Solar Generation","priority":sp,"desc":"High sun hours plus elevated utility rates means fastest solar payback. IRA 30% credit applies.","cost":"$17,000","savings":"$2,400/yr","payback":"7 yrs","co2":"3.1 tCO2e"},
+            {"icon":"🔋","title":"Home Battery (13.5 kWh)","type":"Storage","priority":"high","desc":"Avoid peak TOU rates 5-9pm. Store solar, eliminate peak charges. SGIP rebate available in CA.","cost":"$10,000","savings":"$720/yr","payback":"14 yrs","co2":"1.1 tCO2e"},
+            {"icon":"🌡️","title":"Smart Thermostat + TOU Plan","type":"Controls","priority":"high","desc":"Shift load off peak hours. Saves $180-240/yr with minimal upfront cost.","cost":"$250","savings":"$220/yr","payback":"1 yr","co2":"0.2 tCO2e"},
+            {"icon":"💧","title":"Heat Pump Water Heater","type":"Water Heating","priority":"medium","desc":"Water heating is 20% of usage here, highest share. HPWH reduces it by 65%.","cost":"$1,200","savings":"$340/yr","payback":"3-4 yrs","co2":"0.5 tCO2e"},
+            {"icon":"⚡","title":"EV Charger (Level 2)","type":"Transportation","priority":"medium","desc":"Pair with off-peak rate plan. Many states offer EV rebates up to $4,500.","cost":"$800","savings":"$480/yr","payback":"2 yrs","co2":"1.4 tCO2e"},
+            {"icon":"🏠","title":"Cool Roof Coating","type":"Envelope","priority":"low","desc":"Reflects solar heat in summer. Reduces cooling load 10-15% in mixed-dry climates.","cost":"$2,000","savings":"$180/yr","payback":"11 yrs","co2":"0.3 tCO2e"},
+        ]
 
-    selected_address = ""
-    if suggestions:
-        options = [item["display_name"] for item in suggestions]
-        selected_address = st.selectbox(
-            "Choose a suggested address",
-            options,
-            key="selected_address"
-        )
-    elif address_query and len(address_query.strip()) >= 3:
-        st.caption("No suggestions found. You can still continue with the typed address.")
+def get_incentives(state_abbr, state_name, climate_region):
+    federal = [
+        {"type":"Federal","name":"IRA Solar Tax Credit (30% ITC)","value":"Up to $7,500"},
+        {"type":"Federal","name":"Heat Pump Tax Credit (25C)","value":"Up to $2,000"},
+        {"type":"Federal","name":"Home Energy Audit Credit","value":"$150"},
+        {"type":"Federal","name":"Insulation and Air Sealing Credit","value":"Up to $1,200"},
+    ]
+    state_map = {
+        "TX":[{"type":"State","name":"TX Property Tax Exemption (Solar)","value":"100% exempt"},{"type":"Utility","name":"Oncor Smart Thermostat Rebate","value":"$85"}],
+        "CA":[{"type":"State","name":"CA SGIP Battery Incentive","value":"Up to $2,000"},{"type":"Utility","name":"PG&E EV Off-Peak Rate Plan","value":"$480/yr saved"}],
+        "NY":[{"type":"State","name":"NY-Sun Solar Incentive","value":"$0.20/W"},{"type":"Utility","name":"ConEdison Demand Response","value":"$300/yr"}],
+        "IL":[{"type":"State","name":"IL Weatherization Assistance","value":"Up to $3,500"},{"type":"Utility","name":"ComEd Efficiency Rebate","value":"$400"}],
+        "FL":[{"type":"State","name":"FL Sales Tax Exemption (Solar)","value":"6% exempt"},{"type":"Utility","name":"FPL On-Bill Financing","value":"0% interest"}],
+        "WA":[{"type":"State","name":"WA Solar Inverter Incentive","value":"$0.16/W"},{"type":"Utility","name":"PSE Efficiency Rebate","value":"Up to $1,000"}],
+        "OH":[{"type":"State","name":"OH Residential Efficiency Program","value":"Varies"},{"type":"Utility","name":"AEP Ohio Smart Thermostat","value":"$75"}],
+        "MN":[{"type":"State","name":"MN Solar Rewards Program","value":"$0.08/kWh"},{"type":"Utility","name":"Xcel Energy Rebates","value":"Up to $600"}],
+    }
+    local = state_map.get(state_abbr, [
+        {"type":"State","name":f"{state_name or 'State'} Efficiency Program","value":"Varies"},
+        {"type":"Utility","name":"Local Utility Rebate Program","value":"Contact utility"},
+    ])
+    return federal + local
+
+def get_market_data(state_name, state_abbr, rate, climate_region):
+    if   state_abbr in {"WA","OR","CA","NY","VT","ID"}:         cg,hp,sa="Above avg","+18%","22%"
+    elif state_abbr in {"TX","FL","AZ","NV","LA","GA","SC","AL","MS"}: cg,hp,sa="Moderate","+22%","14%"
+    elif state_abbr in {"MN","WI","MI","ND","SD","MT","VT","NH","ME"}: cg,hp,sa="Moderate","+23%","6%"
+    else:                                                              cg,hp,sa="Typical","+20%","10%"
+    stats = [
+        {"icon":"⚡","label":"Local electricity rate","val":f"${rate:.3f}/kWh","trend":"vs $0.17 US avg"},
+        {"icon":"☀️","label":"Solar adoption in region","val":sa,"trend":"growing year-over-year"},
+        {"icon":"🌡️","label":"Heat pump market growth","val":hp,"trend":"residential installs"},
+        {"icon":"🍃","label":"Grid carbon profile","val":cg,"trend":"vs national baseline"},
+        {"icon":"📅","label":"Federal incentive window","val":"Through 2032","trend":"IRA credits active"},
+        {"icon":"📈","label":"Utility rate trend","val":"Rising +4%/yr","trend":"efficiency = resilience"},
+    ]
+    if climate_region == "hot":
+        comps = [{"name":"Tesla Energy","type":"Solar + Powerwall","share":28},{"name":"SunPower","type":"Premium Solar","share":19},{"name":"Sunrun","type":"Solar Lease / PPA","share":17},{"name":"Local Utility Co","type":"Utility-run program","share":14},{"name":"ADT Solar","type":"Solar + Security","share":11}]
+        trends = {"labels":["2020","2021","2022","2023","2024","2025"],"solar":[6,8,10,12,14,16],"battery":[2,3,5,8,12,17],"ev":[3,5,7,9,12,16]}
+    elif climate_region == "cold":
+        comps = [{"name":"Local Utility Co","type":"Utility efficiency program","share":31},{"name":"Vivint Solar","type":"Solar + Smart Home","share":18},{"name":"Green Mountain","type":"Retail clean energy","share":15},{"name":"Sunrun","type":"Solar Lease","share":13},{"name":"Peoples Energy","type":"Gas Utility","share":10}]
+        trends = {"labels":["2020","2021","2022","2023","2024","2025"],"solar":[2,3,4,5,6,7],"battery":[1,2,3,5,7,10],"ev":[2,3,4,6,8,11]}
+    else:
+        comps = [{"name":"Tesla Energy","type":"Solar + Powerwall","share":34},{"name":"SunPower","type":"Premium Solar","share":22},{"name":"Utility Green","type":"Green utility plan","share":16},{"name":"Sunrun","type":"Solar Lease / PPA","share":14},{"name":"Swell Energy","type":"VPP / Battery","share":8}]
+        trends = {"labels":["2020","2021","2022","2023","2024","2025"],"solar":[12,15,17,20,22,25],"battery":[4,6,9,13,18,24],"ev":[8,11,14,17,20,24]}
+    return stats, comps, trends
+
+def get_neighborhood_comparison(annual_kwh):
+    return [
+        {"label":"Most efficient nearby","kwh":int(annual_kwh*.62),"score":88,"you":False},
+        {"label":"This home (estimated)","kwh":annual_kwh,"score":None,"you":True},
+        {"label":"Neighborhood average","kwh":int(annual_kwh*1.08),"score":61,"you":False},
+        {"label":"High-usage homes","kwh":int(annual_kwh*1.45),"score":38,"you":False},
+    ]
+
+def get_ai_analysis(address, state_name, climate_region, category, annual_cost, prediction, carbon_tons, upgrades, rate, nhsldmem, heating_label, aircond_label):
+    top  = upgrades[0] if upgrades else {"title":"efficiency improvements","savings":"$200/yr"}
+    top2 = upgrades[1] if len(upgrades) > 1 else top
+    loc  = state_name if state_name else "this region"
+    national_avg = 10500
+    diff_pct = int(abs(prediction - national_avg) / national_avg * 100)
+    vs_avg = f"{diff_pct}% above" if prediction > national_avg else f"{diff_pct}% below"
+    climate_text = {
+        "hot":   f"Located in a Hot-Humid climate zone, cooling is the dominant energy driver accounting for 40-48% of annual consumption. Long cooling seasons mean HVAC efficiency has the highest ROI of any upgrade.",
+        "cold":  f"In a Cold climate zone, heating dominates winter energy costs. Months like December through February can drive bills 70-90% above the summer average, making insulation and heat pump upgrades the priority.",
+        "mild":  f"A Mixed-Dry or Mild climate means energy use is more balanced year-round. The elevated utility rate in {loc} makes every kWh saved more valuable than in most US states.",
+        "mixed": f"This Mixed climate sees meaningful costs from both heating and cooling, spreading opportunity across HVAC, insulation, and water heating upgrades.",
+    }[climate_region]
+    savings_total = 0
+    for u in upgrades[:3]:
+        try:
+            s = u["savings"].replace("$","").replace("/yr","").replace(",","").split("-")[0]
+            savings_total += int(s)
+        except Exception:
+            pass
+    peak_time = "evenings (5-9 pm)" if climate_region in ("mild","mixed") else ("afternoons (12-6 pm)" if climate_region=="hot" else "mornings and evenings")
+    return {
+        "overview": f"This home in <strong>{loc}</strong> shows a <strong>{category.lower()} energy profile</strong> consuming an estimated <strong>{prediction:,.0f} kWh/year</strong>, which is <strong>{vs_avg}</strong> the US national average of 10,500 kWh. Estimated annual energy cost is <strong>${annual_cost:,.0f}</strong> (~<strong>${annual_cost/12:,.0f}/month</strong>).",
+        "climate":  climate_text,
+        "peak_load": f"Peak electricity demand typically occurs during <strong>{peak_time}</strong>. With <strong>{nhsldmem} household member{'s' if nhsldmem>1 else ''}</strong> and {'air conditioning' if aircond_label=='Yes' else 'no air conditioning'}, the evening load curve is the most cost-sensitive window for time-of-use rate savings.",
+        "carbon":   f"The estimated carbon footprint is <strong>{carbon_tons:.1f} tCO2e/year</strong>. {'This is below the US residential average of 7.5 tons, partly due to a cleaner regional grid.' if carbon_tons < 7.5 else 'Switching to clean energy sources and reducing consumption could meaningfully lower this figure over time.'}",
+        "top_action": f"The single highest-ROI action for this home is <strong>{top['title']}</strong>, estimated to save <strong>{top['savings']}</strong>. Combined with <strong>{top2['title']}</strong>, the top two upgrades alone could save approximately <strong>${savings_total:,}/year</strong>.",
+        "incentive_note": f"Federal IRA credits are active through 2032. A 30% solar tax credit, $2,000 heat pump credit, and $1,200 insulation credit can stack together, potentially covering <strong>$5,000-$10,000</strong> of upgrade costs with no additional application risk.",
+    }
+
+# ── Session state ──────────────────────────────────────────────────────────────
+for k, v in [("page","form"),("report_data",None),("selected_address_value","")]:
+    if k not in st.session_state: st.session_state[k] = v
+
+def go_to_report(data):
+    st.session_state.report_data = data; st.session_state.page = "report"
+
+def go_to_form():
+    st.session_state.page = "form"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 1 — FORM
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "form":
+
+    st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
+    st.markdown('<div class="hero-chip">AI-Powered  |  ML Model  |  Real RECS Data</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">Know exactly how your home<br>uses <span class="title-accent">energy</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Enter your address and home details to get a personalized energy report with upgrade opportunities, available incentives, and AI-powered recommendations.</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="form-card">', unsafe_allow_html=True)
+
+    # Address search
+    st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
+    address_query    = st.text_input("addr_hidden", placeholder="Start typing any US address...", key="addr_input", label_visibility="collapsed")
+    suggestions      = search_address(address_query)
+    selected_address = st.session_state.get("selected_address_value", "")
+
+    if suggestions and not selected_address:
+        st.markdown('<div class="addr-dropdown">', unsafe_allow_html=True)
+        for i, item in enumerate(suggestions):
+            title, subtitle = split_address_parts(item["display_name"])
+            col_txt, col_btn = st.columns([0.82, 0.18])
+            with col_txt:
+                st.markdown(f'<div class="addr-item"><div class="addr-pin">📍</div><div><div class="addr-item-main">{title}</div><div class="addr-item-sub">{subtitle}</div></div></div>', unsafe_allow_html=True)
+            with col_btn:
+                st.write("")
+                if st.button("Select", key=f"sel_{i}", use_container_width=True):
+                    st.session_state["selected_address_value"] = item["display_name"]
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    elif address_query and len(address_query.strip()) >= 3 and not suggestions and not selected_address:
+        st.caption("No suggestions found — you can still continue with what you typed.")
         selected_address = address_query
 
-    with st.expander("Advanced home details", expanded=True):
-        totrooms = st.number_input("Total Rooms", min_value=1, max_value=20, value=6)
-        totsqft_en = st.number_input("Square Footage", min_value=200, max_value=10000, value=1800)
-        nhsldmem = st.number_input("Household Members", min_value=1, max_value=15, value=3)
-
-        housing_type_label = st.selectbox(
-            "Housing Type",
-            ["Single-family detached", "Single-family attached", "Apartment", "Mobile home", "Other"]
-        )
-        housing_type_map = {
-            "Single-family detached": 2,
-            "Single-family attached": 3,
-            "Apartment": 4,
-            "Mobile home": 5,
-            "Other": 1
-        }
-        typehuq = housing_type_map[housing_type_label]
-
-        aircond_label = st.selectbox("Air Conditioning", ["Yes", "No"])
-        aircond_map = {"Yes": 1, "No": 0}
-        aircond = aircond_map[aircond_label]
-
-        heating_label = st.selectbox(
-            "Heating Fuel",
-            ["Electricity", "Natural Gas", "Fuel Oil", "Propane", "Other"]
-        )
-        fuelheat_map = {
-            "Electricity": 5,
-            "Natural Gas": 1,
-            "Fuel Oil": 2,
-            "Propane": 3,
-            "Other": 10
-        }
-        fuelheat = fuelheat_map[heating_label]
-
-        division = st.selectbox("Region Division Code", list(range(1, 11)), index=4)
-        yearmaderange = st.selectbox("Home Age Range Code", list(range(1, 10)), index=4)
-
-    predict = st.button("Generate Energy Report", use_container_width=True)
-
-with right:
-    st.markdown('<div class="section-title">Energy Report</div>', unsafe_allow_html=True)
-
-    if predict:
-        input_df = pd.DataFrame([{
-            "TOTROOMS": totrooms,
-            "TOTSQFT_EN": totsqft_en,
-            "TYPEHUQ": typehuq,
-            "NHSLDMEM": nhsldmem,
-            "AIRCOND": aircond,
-            "FUELHEAT": fuelheat,
-            "DIVISION": division,
-            "YEARMADERANGE": yearmaderange
-        }])
-
-        prediction = model.predict(input_df)[0]
-        monthly_estimate = prediction / 12
-
-        if prediction < 6000:
-            category = "Low"
-            recommendation_text = "Lower estimated usage: your home appears relatively efficient based on the inputs."
-        elif prediction < 12000:
-            category = "Medium"
-            recommendation_text = "Moderate estimated usage: a smart thermostat and efficient appliances may help."
-        else:
-            category = "High"
-            recommendation_text = "High estimated usage: review HVAC efficiency, insulation, and major appliance usage."
-
-        c1, c2, c3 = st.columns(3)
-
+    selected_address = st.session_state.get("selected_address_value", selected_address)
+    if selected_address:
+        c1, c2 = st.columns([0.85, 0.15])
         with c1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Annual Usage</div>
-                <div class="metric-value">{prediction:,.0f} kWh</div>
-            </div>
-            """, unsafe_allow_html=True)
-
+            st.markdown(f'<div class="addr-selected"><span style="font-size:1rem;">✅</span><div class="addr-selected-text">{selected_address}</div></div>', unsafe_allow_html=True)
         with c2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Monthly Estimate</div>
-                <div class="metric-value">{monthly_estimate:,.0f} kWh</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.write("")
+            if st.button("Clear", use_container_width=True):
+                st.session_state["selected_address_value"] = ""; st.rerun()
 
-        with c3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Usage Level</div>
-                <div class="metric-value">{category}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown('<div class="field-section-title">Home Details</div>', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        totrooms      = st.number_input("Total Rooms",       min_value=1,  max_value=20,    value=6)
+        nhsldmem      = st.number_input("Household Members", min_value=1,  max_value=15,    value=3)
+        aircond_label = st.selectbox("Air Conditioning", ["Yes","No"])
+    with col2:
+        sqft_known = st.selectbox("Do you know your square footage?", ["No","Yes"])
+        if sqft_known == "Yes":
+            totsqft_en = st.number_input("Square Footage", min_value=200, max_value=10000, value=1800)
+            sqft_estimated = False
+        else:
+            totsqft_en = None; sqft_estimated = True
+        housing_type_label = st.selectbox("Housing Type", ["Single-family detached","Single-family attached","Apartment","Mobile home","Other"])
+        heating_label      = st.selectbox("Primary Heating Fuel", ["Electricity","Natural Gas","Fuel Oil","Propane","Other"])
 
-        st.markdown('<div class="report-box">', unsafe_allow_html=True)
-        st.markdown("### Why this estimate?")
-        st.write(
-            "This estimate is mainly driven by home size, heating profile, number of rooms, "
-            "household size, housing type, and region."
-        )
+    with st.expander("Advanced model settings", expanded=False):
+        division      = st.selectbox("Region Division Code (1-10)", list(range(1,11)), index=4)
+        yearmaderange = st.selectbox("Home Age Range Code (1-9)",   list(range(1,10)),  index=4)
 
-        st.markdown("### Suggested Next Steps")
-        st.markdown(
-            f'<div class="highlight-box">{recommendation_text}</div>',
-            unsafe_allow_html=True
-        )
+    housing_map  = {"Single-family detached":2,"Single-family attached":3,"Apartment":4,"Mobile home":5,"Other":1}
+    fuelheat_map = {"Electricity":5,"Natural Gas":1,"Fuel Oil":2,"Propane":3,"Other":10}
+    typehuq  = housing_map[housing_type_label]
+    aircond  = 1 if aircond_label=="Yes" else 0
+    fuelheat = fuelheat_map[heating_label]
+    if totsqft_en is None: totsqft_en = estimate_sqft_if_missing(totrooms, housing_type_label)
 
-        if selected_address:
-            st.markdown(f"<p class='small-muted'>Report generated for: {selected_address}</p>", unsafe_allow_html=True)
-        elif address_query:
-            st.markdown(f"<p class='small-muted'>Report generated for: {address_query}</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, bc, _ = st.columns([0.15, 0.70, 0.15])
+    with bc:
+        if st.button("Generate Energy Report  →", use_container_width=True):
+            input_df   = pd.DataFrame([{"TOTROOMS":totrooms,"TOTSQFT_EN":totsqft_en,"TYPEHUQ":typehuq,"NHSLDMEM":nhsldmem,"AIRCOND":aircond,"FUELHEAT":fuelheat,"DIVISION":division,"YEARMADERANGE":yearmaderange}])
+            prediction = model.predict(input_df)[0]
+            category   = format_usage_level(prediction)
+            report_address         = selected_address if selected_address else address_query
+            state_name, state_abbr = extract_state_from_address(report_address)
+            climate_region         = climate_region_from_state(state_abbr)
+            rate                   = estimate_cost_per_kwh(state_abbr, heating_label)
+            annual_cost            = prediction * rate
+            carbon_tons            = prediction * estimate_carbon_factor(state_abbr)
+            upgrades               = get_upgrade_cards(category, climate_region, aircond_label, heating_label, state_abbr)
+            incentives             = get_incentives(state_abbr, state_name, climate_region)
+            market_stats, competitors, trends = get_market_data(state_name, state_abbr, rate, climate_region)
+            neighborhood           = get_neighborhood_comparison(int(prediction))
+            ai_analysis            = get_ai_analysis(report_address, state_name, climate_region, category, annual_cost, prediction, carbon_tons, upgrades, rate, nhsldmem, heating_label, aircond_label)
+            go_to_report({"prediction":prediction,"category":category,"address":report_address,"totrooms":totrooms,"totsqft_en":totsqft_en,"nhsldmem":nhsldmem,"housing_type_label":housing_type_label,"sqft_estimated":sqft_estimated,"aircond_label":aircond_label,"heating_label":heating_label,"annual_cost":annual_cost,"carbon_tons":carbon_tons,"state_name":state_name,"state_abbr":state_abbr,"climate_region":climate_region,"rate":rate,"upgrades":upgrades,"incentives":incentives,"market_stats":market_stats,"competitors":competitors,"trends":trends,"neighborhood":neighborhood,"ai_analysis":ai_analysis})
+            st.rerun()
 
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    b1, b2, b3 = st.columns(3)
+    for col, icon, title, text in [(b1,"⚡","Real ML prediction","Trained on 18,000+ US homes from the EIA RECS survey."),(b2,"📐","Works without sq footage","We estimate it from room count automatically."),(b3,"💡","Full report instantly","Upgrades, incentives, market data, and AI analysis.")]:
+        with col:
+            st.markdown(f'<div class="feature-card"><div class="feature-title">{icon} {title}</div><div class="feature-text">{text}</div></div>', unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown('<div class="footer-note">Streamlit · Random Forest · EIA RECS · DSIRE incentive structure · OpenStreetMap Nominatim</div>', unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 2 — REPORT
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "report":
+    d = st.session_state.report_data
+
+    h1, h2 = st.columns([.78,.22])
+    with h1:
+        st.markdown('<div class="section-title">Your Energy Report</div>', unsafe_allow_html=True)
+        if d["address"]: st.markdown(f'<p class="small-muted">📍 {d["address"]}</p>', unsafe_allow_html=True)
+    with h2:
+        st.write("")
+        if st.button("← Back to Home Details", use_container_width=True): go_to_form(); st.rerun()
+
+    c1, c2, c3 = st.columns(3)
+    with c1: st.markdown(f'<div class="metric-card"><div class="metric-label">Annual Energy Cost</div><div class="metric-value">${d["annual_cost"]:,.0f}</div><div class="metric-subtle">${d["annual_cost"]/12:,.0f} per month</div></div>', unsafe_allow_html=True)
+    with c2: st.markdown(f'<div class="metric-card"><div class="metric-label">Annual Consumption</div><div class="metric-value">{d["prediction"]:,.0f} kWh</div><div class="metric-subtle">{d["category"]} usage profile</div></div>', unsafe_allow_html=True)
+    with c3: st.markdown(f'<div class="metric-card"><div class="metric-label">Carbon Footprint</div><div class="metric-value">{d["carbon_tons"]:.1f} tCO2e</div><div class="metric-subtle">Estimated annual impact</div></div>', unsafe_allow_html=True)
+
+    monthly_df   = build_monthly_profile(d["prediction"], d["aircond_label"], d["heating_label"], d["climate_region"])
+    tod_df       = build_time_of_day_profile(d["category"], d["aircond_label"])
+    breakdown_df = build_usage_breakdown(d["prediction"], d["aircond_label"], d["nhsldmem"], d["heating_label"], d["climate_region"])
+
+    cl, cr = st.columns(2)
+    with cl:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("### Electricity Breakdown")
+        st.caption("Estimated annual consumption by category.")
+        fig, ax = plt.subplots(figsize=(6,5))
+        colors = ["#38bdf8","#f59e0b","#22c55e","#f97316","#a78bfa"]
+        wedges, _, _ = ax.pie(breakdown_df["Estimated kWh"], autopct="%1.0f%%", startangle=90, colors=colors, textprops={"color":"white","fontsize":10})
+        ax.axis("equal"); ax.legend(wedges, breakdown_df["Category"], title="Category", loc="center left", bbox_to_anchor=(1.0,.5), labelcolor="white")
+        fig.patch.set_facecolor("none"); ax.set_facecolor("none")
+        st.pyplot(fig); plt.close(fig)
         st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="report-box">
-            <p class="small-muted">
-                Fill in the home details and click <b>Generate Energy Report</b> to see your estimate.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    with cr:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("### Monthly Cost Estimate")
+        st.caption("Seasonal billing pattern based on climate region.")
+        cost_df = monthly_df.copy(); cost_df["Cost ($)"] = cost_df["Estimated kWh"] * d["rate"]
+        fig2, ax2 = plt.subplots(figsize=(7,4))
+        ax2.bar(cost_df["Month"], cost_df["Cost ($)"], color="#67e8f9", width=0.6)
+        ax2.set_ylabel("Cost ($)", color="white"); ax2.set_xlabel("Month", color="white")
+        ax2.tick_params(axis='x', colors='white', rotation=0); ax2.tick_params(axis='y', colors='white')
+        ax2.set_facecolor("none"); fig2.patch.set_facecolor("none")
+        for sp in ax2.spines.values(): sp.set_color("#5b6b86")
+        st.pyplot(fig2); plt.close(fig2)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("---")
-st.caption("Built with Streamlit and a Random Forest model trained on RECS household energy data.")
+    cl2, cr2 = st.columns(2)
+    with cl2:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("### Monthly Usage Trend"); st.caption("Seasonal kWh estimate.")
+        st.line_chart(monthly_df.set_index("Month")); st.markdown('</div>', unsafe_allow_html=True)
+    with cr2:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("### Time-of-Day Usage"); st.caption("Typical daily load pattern.")
+        st.bar_chart(tod_df.set_index("Time of Day")); st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── AI ANALYSIS PANEL ─────────────────────────────────────────────────────
+    ai = d["ai_analysis"]
+    st.markdown('<div class="ai-panel">', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="ai-header">
+        <div class="ai-dot-ring">🤖</div>
+        <div>
+            <div class="ai-header-title">AI Analysis &amp; Recommendations</div>
+            <div class="ai-header-sub">Generated from ML prediction · regional utility data · RECS benchmarks · climate zone analysis</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="ai-grid">
+        <div class="ai-card"><div class="ai-card-label">📊 Energy Overview</div><div class="ai-card-text">{ai["overview"]}</div></div>
+        <div class="ai-card"><div class="ai-card-label">🌡️ Climate Context</div><div class="ai-card-text">{ai["climate"]}</div></div>
+        <div class="ai-card"><div class="ai-card-label">⏱️ Peak Load Pattern</div><div class="ai-card-text">{ai["peak_load"]}</div></div>
+        <div class="ai-card"><div class="ai-card-label">🌿 Carbon Footprint</div><div class="ai-card-text">{ai["carbon"]}</div></div>
+        <div class="ai-card-full"><div class="ai-card-label">🔧 Highest-Impact Action</div><div class="ai-card-text">{ai["top_action"]}</div></div>
+        <div class="ai-card-full"><div class="ai-card-label">🎁 Incentive Opportunity</div><div class="ai-card-text">{ai["incentive_note"]}</div></div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── UPGRADES ──────────────────────────────────────────────────────────────
+    st.markdown('<div class="section-title">Top Upgrade Opportunities</div>', unsafe_allow_html=True)
+    st.markdown('<p class="section-sub">Ranked by ROI and impact for your climate region. Green border = high priority.</p>', unsafe_allow_html=True)
+    for row_start in [0, 3]:
+        row_u = d["upgrades"][row_start:row_start+3]
+        if not row_u: break
+        ucols = st.columns(3)
+        for col, u in zip(ucols, row_u):
+            with col:
+                st.markdown(f"""
+                <div class="upgrade-card upgrade-card-{u['priority']}">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+                        <div style="font-size:1.6rem;">{u['icon']}</div>
+                        <span class="pill pill-{u['priority']}">{u['priority']}</span>
+                    </div>
+                    <div style="font-size:1rem;font-weight:700;color:white;margin-bottom:.2rem;">{u['title']}</div>
+                    <div style="font-size:.78rem;color:#8fdcf6;margin-bottom:.6rem;">{u['type']}</div>
+                    <div style="font-size:.86rem;color:#c7d6ec;line-height:1.6;margin-bottom:.9rem;">{u['desc']}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+                        <div><div style="font-size:.68rem;color:#8fdcf6;text-transform:uppercase;letter-spacing:.05em;">Cost</div><div style="font-size:.95rem;font-weight:700;color:white;">{u['cost']}</div></div>
+                        <div><div style="font-size:.68rem;color:#8fdcf6;text-transform:uppercase;letter-spacing:.05em;">Savings</div><div style="font-size:.95rem;font-weight:700;color:#22c55e;">{u['savings']}</div></div>
+                        <div><div style="font-size:.68rem;color:#8fdcf6;text-transform:uppercase;letter-spacing:.05em;">Payback</div><div style="font-size:.9rem;font-weight:700;color:white;">{u['payback']}</div></div>
+                        <div><div style="font-size:.68rem;color:#8fdcf6;text-transform:uppercase;letter-spacing:.05em;">CO2 saved</div><div style="font-size:.9rem;font-weight:700;color:white;">{u['co2']}</div></div>
+                    </div>
+                </div>""", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── INCENTIVES ────────────────────────────────────────────────────────────
+    st.markdown('<div class="section-title">Available Incentives</div>', unsafe_allow_html=True)
+    st.markdown('<p class="section-sub">Federal, state, and utility programs available for this address. Based on DSIRE database structure.</p>', unsafe_allow_html=True)
+    ic1, ic2 = st.columns(2)
+    for i, inc in enumerate(d["incentives"]):
+        with (ic1 if i%2==0 else ic2):
+            st.markdown(f'<div class="incentive-card"><div class="incentive-type">{inc["type"]}</div><div class="incentive-name">{inc["name"]}</div><div class="incentive-value">{inc["value"]}</div></div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── NEIGHBORHOOD ──────────────────────────────────────────────────────────
+    st.markdown('<div class="section-title">Neighborhood Comparison</div>', unsafe_allow_html=True)
+    st.markdown('<p class="section-sub">How this home compares to others with similar profiles nearby.</p>', unsafe_allow_html=True)
+    neighborhood = d["neighborhood"]; max_kwh = max(h["kwh"] for h in neighborhood)
+    st.markdown('<div class="panel-card"><table class="comp-table"><thead><tr><th>Home profile</th><th>Annual usage</th><th>Efficiency score</th></tr></thead><tbody>', unsafe_allow_html=True)
+    for row in neighborhood:
+        you_tag = '<span class="you-tag">you</span>' if row["you"] else ""
+        you_cls = ' class="you"' if row["you"] else ""
+        bar_pct = int(row["kwh"]/max_kwh*100)
+        bar_color = "#67e8f9" if row["you"] else "#1e3a5f"
+        score_str = f"{row['score']}/100" if row["score"] else "—"
+        st.markdown(f'<tr><td{you_cls}>{row["label"]}{you_tag}</td><td><div style="display:inline-flex;align-items:center;gap:10px;"><div style="width:110px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="width:{bar_pct}%;height:100%;background:{bar_color};border-radius:3px;"></div></div><span style="font-family:DM Mono,monospace;font-size:.88rem;">{row["kwh"]:,} kWh</span></div></td><td>{score_str}</td></tr>', unsafe_allow_html=True)
+    st.markdown('</tbody></table></div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── MARKET LANDSCAPE ──────────────────────────────────────────────────────
+    st.markdown('<div class="section-title">Residential Energy Market Landscape</div>', unsafe_allow_html=True)
+    st.markdown('<p class="section-sub">Regional market context, key players, and adoption trends for your area.</p>', unsafe_allow_html=True)
+    ms_cols = st.columns(3)
+    for i, card in enumerate(d["market_stats"]):
+        with ms_cols[i%3]:
+            st.markdown(f'<div class="market-card"><div style="font-size:1.3rem;margin-bottom:.4rem;">{card["icon"]}</div><div style="font-size:.72rem;color:#8fdcf6;text-transform:uppercase;letter-spacing:.06em;">{card["label"]}</div><div style="font-size:1.55rem;font-weight:800;color:white;font-family:DM Mono,monospace;margin:.25rem 0;">{card["val"]}</div><div style="font-size:.8rem;color:#c7d6ec;">{card["trend"]}</div></div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    ml, mr = st.columns(2)
+    with ml:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("### Key Players in Your Market"); st.caption("Market share estimates for residential energy services.")
+        for c in d["competitors"]:
+            st.markdown(f'<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(103,232,249,.08);"><div><div style="font-size:.92rem;font-weight:600;color:white;">{c["name"]}</div><div style="font-size:.78rem;color:#8fdcf6;">{c["type"]}</div></div><div style="display:flex;align-items:center;gap:10px;"><div style="width:90px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="width:{c["share"]}%;height:100%;background:#67e8f9;border-radius:3px;"></div></div><span style="font-family:DM Mono,monospace;font-size:.86rem;color:#c7d6ec;">{c["share"]}%</span></div></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with mr:
+        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+        st.markdown("### Adoption Trends in Your Area"); st.caption("% of homes with solar, battery storage, and EVs.")
+        trends = d["trends"]; fig3, ax3 = plt.subplots(figsize=(6,4))
+        ax3.plot(trends["labels"], trends["solar"],   "o-", color="#EF9F27", lw=2, ms=5, label="Solar %")
+        ax3.plot(trends["labels"], trends["battery"], "o-", color="#67e8f9", lw=2, ms=5, label="Battery %")
+        ax3.plot(trends["labels"], trends["ev"],      "o-", color="#22c55e", lw=2, ms=5, label="EV %")
+        ax3.set_facecolor("none"); fig3.patch.set_facecolor("none")
+        ax3.tick_params(axis='x', colors='white'); ax3.tick_params(axis='y', colors='white')
+        for sp in ax3.spines.values(): sp.set_color("#5b6b86")
+        ax3.yaxis.set_major_formatter(plt.FuncFormatter(lambda x,_: f"{int(x)}%"))
+        ax3.legend(facecolor="none", labelcolor="white", framealpha=0)
+        st.pyplot(fig3); plt.close(fig3)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if d.get("sqft_estimated"):
+        st.info("Square footage was estimated from room count. Providing exact square footage will improve prediction accuracy.")
+    st.caption("Disclaimer: All figures are location-aware estimates based on address context, state data, and home profile — not live utility records. Sources: EIA RECS, EPA eGRID, DSIRE, NREL, Lawrence Berkeley Lab.")
+    st.markdown("---")
+    st.markdown('<div class="footer-note">Built with Streamlit · Random Forest trained on EIA RECS · Incentives: DSIRE · Address: OpenStreetMap Nominatim</div>', unsafe_allow_html=True)

@@ -432,108 +432,46 @@ if st.session_state.page=="form":
 
     selected_address = st.session_state.get("selected_address_value","")
 
+    st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
+
     if not selected_address:
-        st.components.v1.html("""
-        <style>
-        * { box-sizing:border-box; margin:0; padding:0; font-family:'Figtree','Segoe UI',sans-serif; }
-        html { background:#f7f5f0; }
-        body { background:#f7f5f0; overflow:hidden; margin:0; padding:0; }
-        .ac-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:#374151; margin-bottom:6px; display:block; }
-        #addrInput {
-            width:100%; padding:13px 16px; font-size:15px;
-            border:1.5px solid #e8e4dc; border-radius:10px;
-            background:#fff; color:#111827; outline:none;
-            transition:border-color .15s; box-shadow:0 1px 4px rgba(0,0,0,.05);
-        }
-        #addrInput:focus { border-color:#d97706; box-shadow:0 0 0 3px rgba(217,119,6,.1); }
-        #dropdown {
-            margin-top:6px; background:#fff;
-            border:1px solid #e8e4dc; border-radius:14px;
-            box-shadow:0 8px 24px rgba(0,0,0,.10);
-            overflow:hidden; display:none;
-        }
-        .ac-item {
-            display:flex; align-items:center; gap:10px;
-            padding:12px 14px; cursor:pointer;
-            border-bottom:1px solid #f3f4f6;
-            transition:background .12s;
-        }
-        .ac-item:last-child { border-bottom:none; }
-        .ac-item:hover { background:#fffbeb; }
-        .ac-pin { width:30px; height:30px; border-radius:8px; flex-shrink:0; background:#fef3c7; border:1px solid #fde68a; display:flex; align-items:center; justify-content:center; font-size:13px; }
-        .ac-main { font-size:13px; font-weight:600; color:#111827; line-height:1.3; }
-        .ac-sub  { font-size:11px; color:#9ca3af; margin-top:2px; }
-        .ac-msg  { padding:12px 14px; font-size:12px; color:#9ca3af; text-align:center; }
-        </style>
-
-        <span class="ac-label">Home Address</span>
-        <input id="addrInput" placeholder="Start typing any US address..." autocomplete="off"/>
-        <div id="dropdown"></div>
-
-        <script>
-        const STATES = ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
-
-        let timer=null, last='';
-        const inp=document.getElementById('addrInput');
-        const dd =document.getElementById('dropdown');
-
-        inp.addEventListener('input',function(){
-            const q=this.value.trim();
-            if(q===last) return; last=q;
-            clearTimeout(timer);
-            if(q.length<3){ hide(); return; }
-            dd.innerHTML='<div class="ac-msg">Searching...</div>';
-            dd.style.display='block';
-            window.frameElement.style.height='100px';
-            timer=setTimeout(()=>fetch_it(q),300);
-        });
-
-        async function fetch_it(q){
-            try{
-                const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=jsonv2&addressdetails=1&limit=5&countrycodes=us&dedupe=1',{headers:{'User-Agent':'EnergyIQ/1.0'}});
-                const d=await r.json();
-                if(inp.value.trim()!==q) return;
-                if(!d.length){ dd.innerHTML='<div class="ac-msg">No addresses found.</div>'; return; }
-                dd.innerHTML=d.map(item=>{
-                    const p=item.display_name.split(', ');
-                    const main=p[0];
-                    const city=p.find(x=>x.match(/^[A-Z][a-z]/)&&!x.match(/County|United|District|Township/))||p[1]||'';
-                    const state=p.find(x=>STATES.includes(x))||'';
-                    const zip=p.find(x=>/^[0-9]{5}$/.test(x))||'';
-                    const clean=[main,city,state,zip].filter(Boolean).join(', ');
-                    const sub=[city,state,zip].filter(Boolean).join(', ');
-                    return '<div class="ac-item" onclick="pick(''+clean.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'')"><div class="ac-pin">📍</div><div><div class="ac-main">'+main+'</div><div class="ac-sub">'+sub+'</div></div></div>';
-                }).join('');
-                dd.style.display='block';
-                // expand iframe to show results
-                window.frameElement.style.height='380px';
-            }catch(e){ dd.innerHTML='<div class="ac-msg">Error — type address manually.</div>'; }
-        }
-
-        function pick(clean){
-            inp.value=clean;
-            hide();
-            const u=new URL(window.parent.location.href);
-            u.searchParams.set('addr',encodeURIComponent(clean));
-            window.parent.location.href=u.toString();
-        }
-
-        function hide(){
-            dd.style.display='none'; dd.innerHTML='';
-            window.frameElement.style.height='60px';
-        }
-
-        document.addEventListener('click',function(e){
-            if(!e.target.closest('#addrInput')&&!e.target.closest('#dropdown')) hide();
-        });
-        </script>
-        """, height=60, scrolling=True)
+        address_query = st.text_input(
+            "addr_search", placeholder="e.g. 2100 Oak Lawn Ave, Dallas TX",
+            key="addr_search_input", label_visibility="collapsed"
+        )
+        if address_query and len(address_query.strip()) >= 3:
+            results = search_address(address_query)
+            if results:
+                for i, item in enumerate(results[:5]):
+                    parts  = item["display_name"].split(", ")
+                    main   = parts[0]
+                    STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"]
+                    city   = next((p for p in parts if p[0].isupper() and "County" not in p and "United" not in p and "District" not in p and p not in STATES), parts[1] if len(parts)>1 else "")
+                    state  = next((p for p in parts if p in STATES), "")
+                    zipc   = next((p for p in parts if p.isdigit() and len(p)==5), "")
+                    clean  = ", ".join(filter(None,[main,city,state,zipc]))
+                    sub    = ", ".join(filter(None,[city,state,zipc]))
+                    ca, cb = st.columns([0.83, 0.17])
+                    with ca:
+                        st.markdown(f'''<div class="addr-item">
+                            <div class="addr-pin">📍</div>
+                            <div><div class="addr-item-main">{main}</div>
+                            <div class="addr-item-sub">{sub}</div></div>
+                        </div>''', unsafe_allow_html=True)
+                    with cb:
+                        if st.button("Select", key=f"asel_{i}", use_container_width=True):
+                            st.session_state["selected_address_value"] = clean
+                            st.rerun()
+            else:
+                st.caption("No results — continue with typed address.")
+                if st.button("Use this address", key="use_typed"):
+                    st.session_state["selected_address_value"] = address_query
+                    st.rerun()
     else:
-        st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
-        col_sel, col_clr = st.columns([0.85, 0.15])
-        with col_sel:
+        ca, cb = st.columns([0.85, 0.15])
+        with ca:
             st.markdown(f'<div class="addr-selected"><span>✅</span><div class="addr-selected-text">{selected_address}</div></div>', unsafe_allow_html=True)
-        with col_clr:
+        with cb:
             st.write("")
             if st.button("Clear", use_container_width=True):
                 st.session_state["selected_address_value"] = ""

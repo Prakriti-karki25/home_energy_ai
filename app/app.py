@@ -435,143 +435,106 @@ if st.session_state.page=="form":
     if not selected_address:
         st.components.v1.html("""
         <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Figtree', 'Segoe UI', sans-serif; }
-        html, body { background: transparent; overflow: visible; height: auto; }
-        .ac-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #374151; margin-bottom: 6px; display: block; }
-        .ac-input {
-            width: 100%; padding: 12px 16px; font-size: 15px;
-            border: 1.5px solid #e8e4dc; border-radius: 10px;
-            background: #fff; color: #111827; outline: none;
-            transition: border-color .15s; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+        * { box-sizing:border-box; margin:0; padding:0; font-family:'Figtree','Segoe UI',sans-serif; }
+        html { background:#f7f5f0; }
+        body { background:#f7f5f0; overflow:hidden; margin:0; padding:0; }
+        .ac-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:#374151; margin-bottom:6px; display:block; }
+        #addrInput {
+            width:100%; padding:13px 16px; font-size:15px;
+            border:1.5px solid #e8e4dc; border-radius:10px;
+            background:#fff; color:#111827; outline:none;
+            transition:border-color .15s; box-shadow:0 1px 4px rgba(0,0,0,.05);
         }
-        .ac-input:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,.1); }
-        .ac-dropdown {
-            margin-top: 6px;
-            background: #fff; border: 1px solid #e8e4dc; border-radius: 14px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.10);
-            overflow: hidden; display: none;
+        #addrInput:focus { border-color:#d97706; box-shadow:0 0 0 3px rgba(217,119,6,.1); }
+        #dropdown {
+            margin-top:6px; background:#fff;
+            border:1px solid #e8e4dc; border-radius:14px;
+            box-shadow:0 8px 24px rgba(0,0,0,.10);
+            overflow:hidden; display:none;
         }
         .ac-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 11px 14px; cursor: pointer;
-            border-bottom: 1px solid #f3f4f6; transition: background .1s;
+            display:flex; align-items:center; gap:10px;
+            padding:12px 14px; cursor:pointer;
+            border-bottom:1px solid #f3f4f6;
+            transition:background .12s;
         }
-        .ac-item:last-child { border-bottom: none; }
-        .ac-item:hover { background: #fffbeb; }
-        .ac-pin {
-            width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-            background: #fef3c7; border: 1px solid #fde68a;
-            display: flex; align-items: center; justify-content: center; font-size: 13px;
-        }
-        .ac-main { font-size: 13px; font-weight: 600; color: #111827; }
-        .ac-sub  { font-size: 11px; color: #9ca3af; margin-top: 1px; }
-        .ac-loading { padding: 12px 14px; font-size: 12px; color: #9ca3af; text-align: center; }
+        .ac-item:last-child { border-bottom:none; }
+        .ac-item:hover { background:#fffbeb; }
+        .ac-pin { width:30px; height:30px; border-radius:8px; flex-shrink:0; background:#fef3c7; border:1px solid #fde68a; display:flex; align-items:center; justify-content:center; font-size:13px; }
+        .ac-main { font-size:13px; font-weight:600; color:#111827; line-height:1.3; }
+        .ac-sub  { font-size:11px; color:#9ca3af; margin-top:2px; }
+        .ac-msg  { padding:12px 14px; font-size:12px; color:#9ca3af; text-align:center; }
         </style>
 
         <span class="ac-label">Home Address</span>
-        <input class="ac-input" id="addrInput" placeholder="Start typing any US address..." autocomplete="off" />
-        <div class="ac-dropdown" id="dropdown"></div>
+        <input id="addrInput" placeholder="Start typing any US address..." autocomplete="off"/>
+        <div id="dropdown"></div>
 
         <script>
-        let debounceTimer = null;
-        let lastQuery = '';
-        const input    = document.getElementById('addrInput');
-        const dropdown = document.getElementById('dropdown');
+        const STATES = ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
 
-        function resizeIframe() {
-            const h = document.body.scrollHeight;
-            window.parent.postMessage({ type: 'streamlit:setFrameHeight', height: h }, '*');
-        }
+        let timer=null, last='';
+        const inp=document.getElementById('addrInput');
+        const dd =document.getElementById('dropdown');
 
-        input.addEventListener('input', function() {
-            const q = this.value.trim();
-            if (q === lastQuery) return;
-            lastQuery = q;
-            clearTimeout(debounceTimer);
-            if (q.length < 3) {
-                dropdown.style.display = 'none';
-                dropdown.innerHTML = '';
-                resizeIframe();
-                return;
-            }
-            dropdown.innerHTML = '<div class="ac-loading">Searching...</div>';
-            dropdown.style.display = 'block';
-            resizeIframe();
-            debounceTimer = setTimeout(() => fetchSuggestions(q), 280);
+        inp.addEventListener('input',function(){
+            const q=this.value.trim();
+            if(q===last) return; last=q;
+            clearTimeout(timer);
+            if(q.length<3){ hide(); return; }
+            dd.innerHTML='<div class="ac-msg">Searching...</div>';
+            dd.style.display='block';
+            timer=setTimeout(()=>fetch_it(q),300);
         });
 
-        async function fetchSuggestions(query) {
-            try {
-                const url = 'https://nominatim.openstreetmap.org/search?q='
-                    + encodeURIComponent(query)
-                    + '&format=jsonv2&addressdetails=1&limit=5&countrycodes=us&dedupe=1';
-                const res  = await fetch(url, { headers: { 'User-Agent': 'EnergyIQ/1.0' } });
-                const data = await res.json();
-                if (input.value.trim() !== query) return;
-                if (!data.length) {
-                    dropdown.innerHTML = '<div class="ac-loading">No addresses found.</div>';
-                    resizeIframe(); return;
-                }
-                dropdown.innerHTML = data.map(item => {
-                    const parts = item.display_name.split(', ');
-                    // Clean display: street + city + state only
-                    const main = parts[0];
-                    const city  = parts.find(p => p.match(/^[A-Z][a-z]/) && !p.match(/County|United|District/)) || parts[1] || '';
-                    const state = parts.find(p => ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].includes(p)) || '';
-                    const zip   = parts.find(p => p.match(/^[0-9]{5}$/)) || '';
-                    const sub   = [city, state, zip].filter(Boolean).join(', ');
-                    const clean = [main, city, state, zip].filter(Boolean).join(', ');
-                    return '<div class="ac-item" data-clean="' + clean.replace(/"/g,'&quot;') + '" data-full="' + item.display_name.replace(/"/g,'&quot;') + '" onclick="selectAddr(this)">'
-                        + '<div class="ac-pin">📍</div>'
-                        + '<div><div class="ac-main">' + main + '</div>'
-                        + '<div class="ac-sub">' + sub + '</div></div>'
-                        + '</div>';
+        async function fetch_it(q){
+            try{
+                const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=jsonv2&addressdetails=1&limit=5&countrycodes=us&dedupe=1',{headers:{'User-Agent':'EnergyIQ/1.0'}});
+                const d=await r.json();
+                if(inp.value.trim()!==q) return;
+                if(!d.length){ dd.innerHTML='<div class="ac-msg">No addresses found.</div>'; return; }
+                dd.innerHTML=d.map(item=>{
+                    const p=item.display_name.split(', ');
+                    const main=p[0];
+                    const city=p.find(x=>x.match(/^[A-Z][a-z]/)&&!x.match(/County|United|District|Township/))||p[1]||'';
+                    const state=p.find(x=>STATES.includes(x))||'';
+                    const zip=p.find(x=>/^[0-9]{5}$/.test(x))||'';
+                    const clean=[main,city,state,zip].filter(Boolean).join(', ');
+                    const sub=[city,state,zip].filter(Boolean).join(', ');
+                    return '<div class="ac-item" onclick="pick(''+clean.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'')"><div class="ac-pin">📍</div><div><div class="ac-main">'+main+'</div><div class="ac-sub">'+sub+'</div></div></div>';
                 }).join('');
-                dropdown.style.display = 'block';
-                resizeIframe();
-            } catch(e) {
-                dropdown.innerHTML = '<div class="ac-loading">Error. Please type address manually.</div>';
-                resizeIframe();
-            }
+                dd.style.display='block';
+            }catch(e){ dd.innerHTML='<div class="ac-msg">Error — type address manually.</div>'; }
         }
 
-        function selectAddr(el) {
-            const clean = el.getAttribute('data-clean');
-            input.value = clean;
-            dropdown.style.display = 'none';
-            dropdown.innerHTML = '';
-            resizeIframe();
-            // Pass to Streamlit via URL query param
-            const url = new URL(window.parent.location.href);
-            url.searchParams.set('addr', encodeURIComponent(clean));
-            window.parent.location.href = url.toString();
+        function pick(clean){
+            inp.value=clean;
+            hide();
+            const u=new URL(window.parent.location.href);
+            u.searchParams.set('addr',encodeURIComponent(clean));
+            window.parent.location.href=u.toString();
         }
 
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('#addrInput') && !e.target.closest('#dropdown')) {
-                dropdown.style.display = 'none';
-                resizeIframe();
-            }
+        function hide(){ dd.style.display='none'; dd.innerHTML=''; }
+
+        document.addEventListener('click',function(e){
+            if(!e.target.closest('#addrInput')&&!e.target.closest('#dropdown')) hide();
         });
-
-        // Set initial height
-        resizeIframe();
         </script>
-        """, height=60, scrolling=False)
+        """, height=370, scrolling=False)
     else:
-        # Show selected address with clear button
-        c1,c2=st.columns([0.85,0.15])
-        with c1:
-            st.markdown(f'<div class="addr-selected"><span>✅</span><div class="addr-selected-text">{selected_address}</div></div>',unsafe_allow_html=True)
-        with c2:
+        st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
+        col_sel, col_clr = st.columns([0.85, 0.15])
+        with col_sel:
+            st.markdown(f'<div class="addr-selected"><span>✅</span><div class="addr-selected-text">{selected_address}</div></div>', unsafe_allow_html=True)
+        with col_clr:
             st.write("")
-            if st.button("Clear",use_container_width=True):
-                st.session_state["selected_address_value"]=""
-                # Clear query param
+            if st.button("Clear", use_container_width=True):
+                st.session_state["selected_address_value"] = ""
                 st.query_params.clear()
                 st.rerun()
 
-    st.markdown('<div class="field-section-title">Home Details</div>', unsafe_allow_html=True)
+        st.markdown('<div class="field-section-title">Home Details</div>', unsafe_allow_html=True)
     col1,col2=st.columns(2)
     with col1:
         totrooms      = st.number_input("Total Rooms",       min_value=1, max_value=20,    value=6)

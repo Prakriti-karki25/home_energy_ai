@@ -484,6 +484,7 @@ if st.session_state.page=="form":
             if(q.length<3){ hide(); return; }
             dd.innerHTML='<div class="ac-msg">Searching...</div>';
             dd.style.display='block';
+            window.frameElement.style.height='100px';
             timer=setTimeout(()=>fetch_it(q),300);
         });
 
@@ -504,6 +505,8 @@ if st.session_state.page=="form":
                     return '<div class="ac-item" onclick="pick(''+clean.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'')"><div class="ac-pin">📍</div><div><div class="ac-main">'+main+'</div><div class="ac-sub">'+sub+'</div></div></div>';
                 }).join('');
                 dd.style.display='block';
+                // expand iframe to show results
+                window.frameElement.style.height='380px';
             }catch(e){ dd.innerHTML='<div class="ac-msg">Error — type address manually.</div>'; }
         }
 
@@ -515,13 +518,16 @@ if st.session_state.page=="form":
             window.parent.location.href=u.toString();
         }
 
-        function hide(){ dd.style.display='none'; dd.innerHTML=''; }
+        function hide(){
+            dd.style.display='none'; dd.innerHTML='';
+            window.frameElement.style.height='60px';
+        }
 
         document.addEventListener('click',function(e){
             if(!e.target.closest('#addrInput')&&!e.target.closest('#dropdown')) hide();
         });
         </script>
-        """, height=370, scrolling=False)
+        """, height=60, scrolling=True)
     else:
         st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
         col_sel, col_clr = st.columns([0.85, 0.15])

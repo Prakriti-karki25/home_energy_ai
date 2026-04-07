@@ -436,24 +436,25 @@ if st.session_state.page=="form":
         st.components.v1.html("""
         <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Figtree', 'Segoe UI', sans-serif; }
+        body { background: transparent; overflow: visible; }
         .ac-wrap { position: relative; width: 100%; }
         .ac-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #374151; margin-bottom: 6px; display: block; }
         .ac-input {
-            width: 100%; padding: 11px 14px; font-size: 14px;
+            width: 100%; padding: 12px 16px; font-size: 15px;
             border: 1.5px solid #e8e4dc; border-radius: 10px;
             background: #fff; color: #111827; outline: none;
-            transition: border-color .15s;
+            transition: border-color .15s; box-shadow: 0 1px 4px rgba(0,0,0,.05);
         }
-        .ac-input:focus { border-color: #d97706; }
+        .ac-input:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,.1); }
         .ac-dropdown {
-            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            position: relative; top: 6px; left: 0; right: 0;
             background: #fff; border: 1px solid #d1d5db; border-radius: 14px;
-            box-shadow: 0 8px 32px rgba(0,0,0,.14); z-index: 9999;
+            box-shadow: 0 8px 32px rgba(0,0,0,.14);
             overflow: hidden; display: none;
         }
         .ac-item {
             display: flex; align-items: center; gap: 10px;
-            padding: 10px 14px; cursor: pointer;
+            padding: 11px 14px; cursor: pointer;
             border-bottom: 1px solid #f3f4f6; transition: background .1s;
         }
         .ac-item:last-child { border-bottom: none; }
@@ -465,7 +466,7 @@ if st.session_state.page=="form":
         }
         .ac-main { font-size: 13px; font-weight: 600; color: #111827; }
         .ac-sub  { font-size: 11px; color: #9ca3af; margin-top: 1px; }
-        .ac-loading { padding: 12px 14px; font-size: 12px; color: #9ca3af; }
+        .ac-loading { padding: 12px 14px; font-size: 12px; color: #9ca3af; text-align: center; }
         </style>
 
         <div class="ac-wrap">
@@ -558,7 +559,7 @@ if st.session_state.page=="form":
             }
         });
         </script>
-        """, height=80, scrolling=False)
+        """, height=420, scrolling=False)
     else:
         # Show selected address with clear button
         c1,c2=st.columns([0.85,0.15])

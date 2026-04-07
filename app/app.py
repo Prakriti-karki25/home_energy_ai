@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1
 import pandas as pd
 import joblib
 import requests
@@ -213,12 +214,13 @@ model = load_model()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+@st.cache_data(ttl=300, show_spinner=False)
 def search_address(query):
-    if not query or len(query.strip()) < 3: return []
+    if not query or len(query.strip()) < 2: return []
     try:
         r = requests.get("https://nominatim.openstreetmap.org/search",
-            params={"q":query,"format":"jsonv2","addressdetails":1,"limit":6,"countrycodes":"us","dedupe":1},
-            headers={"User-Agent":"home-energy-ai/1.0"}, timeout=8)
+            params={"q":query,"format":"jsonv2","addressdetails":1,"limit":5,"countrycodes":"us","dedupe":1},
+            headers={"User-Agent":"home-energy-ai/1.0 contact@energyiq.app"}, timeout=5)
         r.raise_for_status(); return r.json()
     except Exception: return []
 
@@ -420,38 +422,155 @@ if st.session_state.page=="form":
     st.markdown('<div class="sub-title">Enter your address and home details to get a personalized energy report with upgrade opportunities, available incentives, and AI-powered recommendations.</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Form card
-    # Address
-    st.markdown('<span class="addr-label">Home Address</span>', unsafe_allow_html=True)
-    address_query    = st.text_input("addr_hidden", placeholder="Start typing any US address...", key="addr_input", label_visibility="collapsed")
-    suggestions      = search_address(address_query)
+    # ── JS-powered instant address autocomplete ──────────────────────────
+    # Reads selected address from query param set by JS, avoids Streamlit rerun on keystrokes
+    import urllib.parse
+    params = st.query_params
+    js_selected = params.get("addr", "")
+    if js_selected and not st.session_state.get("selected_address_value",""):
+        st.session_state["selected_address_value"] = urllib.parse.unquote(js_selected)
+
     selected_address = st.session_state.get("selected_address_value","")
 
-    if suggestions and not selected_address:
-        st.markdown('<div class="addr-dropdown">', unsafe_allow_html=True)
-        for i,item in enumerate(suggestions):
-            title,subtitle=split_address_parts(item["display_name"])
-            col_txt,col_btn=st.columns([0.82,0.18])
-            with col_txt:
-                st.markdown(f'<div class="addr-item"><div class="addr-pin">📍</div><div><div class="addr-item-main">{title}</div><div class="addr-item-sub">{subtitle}</div></div></div>',unsafe_allow_html=True)
-            with col_btn:
-                st.write("")
-                if st.button("Select",key=f"sel_{i}",use_container_width=True):
-                    st.session_state["selected_address_value"]=item["display_name"]; st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    elif address_query and len(address_query.strip())>=3 and not suggestions and not selected_address:
-        st.caption("No suggestions found — you can still continue with what you typed.")
-        selected_address=address_query
+    if not selected_address:
+        st.components.v1.html("""
+        <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Figtree', 'Segoe UI', sans-serif; }
+        .ac-wrap { position: relative; width: 100%; }
+        .ac-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #374151; margin-bottom: 6px; display: block; }
+        .ac-input {
+            width: 100%; padding: 11px 14px; font-size: 14px;
+            border: 1.5px solid #e8e4dc; border-radius: 10px;
+            background: #fff; color: #111827; outline: none;
+            transition: border-color .15s;
+        }
+        .ac-input:focus { border-color: #d97706; }
+        .ac-dropdown {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: #fff; border: 1px solid #d1d5db; border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.14); z-index: 9999;
+            overflow: hidden; display: none;
+        }
+        .ac-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; cursor: pointer;
+            border-bottom: 1px solid #f3f4f6; transition: background .1s;
+        }
+        .ac-item:last-child { border-bottom: none; }
+        .ac-item:hover { background: #fffbeb; }
+        .ac-pin {
+            width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+            background: #fef3c7; border: 1px solid #fde68a;
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
+        }
+        .ac-main { font-size: 13px; font-weight: 600; color: #111827; }
+        .ac-sub  { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+        .ac-loading { padding: 12px 14px; font-size: 12px; color: #9ca3af; }
+        </style>
 
-    selected_address=st.session_state.get("selected_address_value",selected_address)
-    if selected_address:
+        <div class="ac-wrap">
+            <span class="ac-label">Home Address</span>
+            <input class="ac-input" id="addrInput" placeholder="Start typing any US address..." autocomplete="off" />
+            <div class="ac-dropdown" id="dropdown"></div>
+        </div>
+
+        <script>
+        let debounceTimer = null;
+        let lastQuery = '';
+
+        const input = document.getElementById('addrInput');
+        const dropdown = document.getElementById('dropdown');
+
+        input.addEventListener('input', function() {
+            const q = this.value.trim();
+            if (q === lastQuery) return;
+            lastQuery = q;
+
+            clearTimeout(debounceTimer);
+
+            if (q.length < 3) {
+                dropdown.style.display = 'none';
+                dropdown.innerHTML = '';
+                return;
+            }
+
+            // Show loading indicator immediately
+            dropdown.innerHTML = '<div class="ac-loading">Searching addresses...</div>';
+            dropdown.style.display = 'block';
+
+            debounceTimer = setTimeout(() => fetchSuggestions(q), 250);
+        });
+
+        async function fetchSuggestions(query) {
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&addressdetails=1&limit=5&countrycodes=us&dedupe=1`;
+                const res = await fetch(url, {
+                    headers: { 'User-Agent': 'EnergyIQ/1.0' }
+                });
+                const data = await res.json();
+
+                if (input.value.trim() !== query) return; // stale result
+
+                if (!data.length) {
+                    dropdown.innerHTML = '<div class="ac-loading">No addresses found. Try a different search.</div>';
+                    return;
+                }
+
+                dropdown.innerHTML = data.map((item, i) => {
+                    const parts = item.display_name.split(', ');
+                    const main = parts[0];
+                    const sub  = parts.slice(1).join(', ');
+                    return `<div class="ac-item" data-full="${item.display_name.replace(/"/g,'&quot;')}" onclick="selectAddr(this)">
+                        <div class="ac-pin">📍</div>
+                        <div>
+                            <div class="ac-main">${main}</div>
+                            <div class="ac-sub">${sub}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+                dropdown.style.display = 'block';
+
+            } catch(e) {
+                dropdown.innerHTML = '<div class="ac-loading">Error fetching addresses. Please type manually.</div>';
+            }
+        }
+
+        function selectAddr(el) {
+            const full = el.getAttribute('data-full');
+            input.value = full;
+            dropdown.style.display = 'none';
+            // Send to Streamlit via query param
+            const encoded = encodeURIComponent(full);
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue',
+                value: full
+            }, '*');
+            // Navigate with query param to trigger Streamlit
+            const url = new URL(window.parent.location.href);
+            url.searchParams.set('addr', encoded);
+            window.parent.location.href = url.toString();
+        }
+
+        // Close dropdown on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.ac-wrap')) {
+                dropdown.style.display = 'none';
+            }
+        });
+        </script>
+        """, height=80, scrolling=False)
+    else:
+        # Show selected address with clear button
         c1,c2=st.columns([0.85,0.15])
         with c1:
             st.markdown(f'<div class="addr-selected"><span>✅</span><div class="addr-selected-text">{selected_address}</div></div>',unsafe_allow_html=True)
         with c2:
             st.write("")
             if st.button("Clear",use_container_width=True):
-                st.session_state["selected_address_value"]=""; st.rerun()
+                st.session_state["selected_address_value"]=""
+                # Clear query param
+                st.query_params.clear()
+                st.rerun()
 
     st.markdown('<div class="field-section-title">Home Details</div>', unsafe_allow_html=True)
     col1,col2=st.columns(2)

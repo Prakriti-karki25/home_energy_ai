@@ -436,8 +436,7 @@ if st.session_state.page=="form":
         st.components.v1.html("""
         <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Figtree', 'Segoe UI', sans-serif; }
-        body { background: transparent; overflow: visible; }
-        .ac-wrap { position: relative; width: 100%; }
+        html, body { background: transparent; overflow: visible; height: auto; }
         .ac-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #374151; margin-bottom: 6px; display: block; }
         .ac-input {
             width: 100%; padding: 12px 16px; font-size: 15px;
@@ -447,9 +446,9 @@ if st.session_state.page=="form":
         }
         .ac-input:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,.1); }
         .ac-dropdown {
-            position: relative; top: 6px; left: 0; right: 0;
-            background: #fff; border: 1px solid #d1d5db; border-radius: 14px;
-            box-shadow: 0 8px 32px rgba(0,0,0,.14);
+            margin-top: 6px;
+            background: #fff; border: 1px solid #e8e4dc; border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.10);
             overflow: hidden; display: none;
         }
         .ac-item {
@@ -469,97 +468,96 @@ if st.session_state.page=="form":
         .ac-loading { padding: 12px 14px; font-size: 12px; color: #9ca3af; text-align: center; }
         </style>
 
-        <div class="ac-wrap">
-            <span class="ac-label">Home Address</span>
-            <input class="ac-input" id="addrInput" placeholder="Start typing any US address..." autocomplete="off" />
-            <div class="ac-dropdown" id="dropdown"></div>
-        </div>
+        <span class="ac-label">Home Address</span>
+        <input class="ac-input" id="addrInput" placeholder="Start typing any US address..." autocomplete="off" />
+        <div class="ac-dropdown" id="dropdown"></div>
 
         <script>
         let debounceTimer = null;
         let lastQuery = '';
-
-        const input = document.getElementById('addrInput');
+        const input    = document.getElementById('addrInput');
         const dropdown = document.getElementById('dropdown');
+
+        function resizeIframe() {
+            const h = document.body.scrollHeight;
+            window.parent.postMessage({ type: 'streamlit:setFrameHeight', height: h }, '*');
+        }
 
         input.addEventListener('input', function() {
             const q = this.value.trim();
             if (q === lastQuery) return;
             lastQuery = q;
-
             clearTimeout(debounceTimer);
-
             if (q.length < 3) {
                 dropdown.style.display = 'none';
                 dropdown.innerHTML = '';
+                resizeIframe();
                 return;
             }
-
-            // Show loading indicator immediately
-            dropdown.innerHTML = '<div class="ac-loading">Searching addresses...</div>';
+            dropdown.innerHTML = '<div class="ac-loading">Searching...</div>';
             dropdown.style.display = 'block';
-
-            debounceTimer = setTimeout(() => fetchSuggestions(q), 250);
+            resizeIframe();
+            debounceTimer = setTimeout(() => fetchSuggestions(q), 280);
         });
 
         async function fetchSuggestions(query) {
             try {
-                const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&addressdetails=1&limit=5&countrycodes=us&dedupe=1`;
-                const res = await fetch(url, {
-                    headers: { 'User-Agent': 'EnergyIQ/1.0' }
-                });
+                const url = 'https://nominatim.openstreetmap.org/search?q='
+                    + encodeURIComponent(query)
+                    + '&format=jsonv2&addressdetails=1&limit=5&countrycodes=us&dedupe=1';
+                const res  = await fetch(url, { headers: { 'User-Agent': 'EnergyIQ/1.0' } });
                 const data = await res.json();
-
-                if (input.value.trim() !== query) return; // stale result
-
+                if (input.value.trim() !== query) return;
                 if (!data.length) {
-                    dropdown.innerHTML = '<div class="ac-loading">No addresses found. Try a different search.</div>';
-                    return;
+                    dropdown.innerHTML = '<div class="ac-loading">No addresses found.</div>';
+                    resizeIframe(); return;
                 }
-
-                dropdown.innerHTML = data.map((item, i) => {
+                dropdown.innerHTML = data.map(item => {
                     const parts = item.display_name.split(', ');
+                    // Clean display: street + city + state only
                     const main = parts[0];
-                    const sub  = parts.slice(1).join(', ');
-                    return `<div class="ac-item" data-full="${item.display_name.replace(/"/g,'&quot;')}" onclick="selectAddr(this)">
-                        <div class="ac-pin">📍</div>
-                        <div>
-                            <div class="ac-main">${main}</div>
-                            <div class="ac-sub">${sub}</div>
-                        </div>
-                    </div>`;
+                    const city  = parts.find(p => p.match(/^[A-Z][a-z]/) && !p.match(/County|United|District/)) || parts[1] || '';
+                    const state = parts.find(p => ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].includes(p)) || '';
+                    const zip   = parts.find(p => p.match(/^[0-9]{5}$/)) || '';
+                    const sub   = [city, state, zip].filter(Boolean).join(', ');
+                    const clean = [main, city, state, zip].filter(Boolean).join(', ');
+                    return '<div class="ac-item" data-clean="' + clean.replace(/"/g,'&quot;') + '" data-full="' + item.display_name.replace(/"/g,'&quot;') + '" onclick="selectAddr(this)">'
+                        + '<div class="ac-pin">📍</div>'
+                        + '<div><div class="ac-main">' + main + '</div>'
+                        + '<div class="ac-sub">' + sub + '</div></div>'
+                        + '</div>';
                 }).join('');
                 dropdown.style.display = 'block';
-
+                resizeIframe();
             } catch(e) {
-                dropdown.innerHTML = '<div class="ac-loading">Error fetching addresses. Please type manually.</div>';
+                dropdown.innerHTML = '<div class="ac-loading">Error. Please type address manually.</div>';
+                resizeIframe();
             }
         }
 
         function selectAddr(el) {
-            const full = el.getAttribute('data-full');
-            input.value = full;
+            const clean = el.getAttribute('data-clean');
+            input.value = clean;
             dropdown.style.display = 'none';
-            // Send to Streamlit via query param
-            const encoded = encodeURIComponent(full);
-            window.parent.postMessage({
-                type: 'streamlit:setComponentValue',
-                value: full
-            }, '*');
-            // Navigate with query param to trigger Streamlit
+            dropdown.innerHTML = '';
+            resizeIframe();
+            // Pass to Streamlit via URL query param
             const url = new URL(window.parent.location.href);
-            url.searchParams.set('addr', encoded);
+            url.searchParams.set('addr', encodeURIComponent(clean));
             window.parent.location.href = url.toString();
         }
 
-        // Close dropdown on outside click
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.ac-wrap')) {
+            if (!e.target.closest('#addrInput') && !e.target.closest('#dropdown')) {
                 dropdown.style.display = 'none';
+                resizeIframe();
             }
         });
+
+        // Set initial height
+        resizeIframe();
         </script>
-        """, height=420, scrolling=False)
+        """, height=60, scrolling=False)
     else:
         # Show selected address with clear button
         c1,c2=st.columns([0.85,0.15])
@@ -603,7 +601,7 @@ if st.session_state.page=="form":
     _,bc,_=st.columns([0.15,0.70,0.15])
     with bc:
         if st.button("Generate Energy Report  →",use_container_width=True):
-            st.session_state["loading_address"]=selected_address if selected_address else address_query
+            st.session_state["loading_address"]=selected_address if selected_address else ""
             st.session_state["loading_inputs"]={"totrooms":totrooms,"totsqft_en":totsqft_en,"typehuq":typehuq,"nhsldmem":nhsldmem,"aircond":aircond,"fuelheat":fuelheat,"division":division,"yearmaderange":yearmaderange,"aircond_label":aircond_label,"heating_label":heating_label,"sqft_estimated":sqft_estimated,"housing_type_label":housing_type_label}
             st.session_state["page"]="loading"; st.rerun()
 
